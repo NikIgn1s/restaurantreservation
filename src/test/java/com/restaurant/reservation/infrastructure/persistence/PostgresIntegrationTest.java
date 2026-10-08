@@ -1,0 +1,37 @@
+package com.restaurant.reservation.infrastructure.persistence;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.testcontainers.containers.PostgreSQLContainer;
+
+import java.util.UUID;
+
+@SpringBootTest
+public abstract class PostgresIntegrationTest {
+
+    @ServiceConnection
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16");
+
+    static {
+        POSTGRES.start();
+    }
+
+    @Autowired
+    protected JdbcTemplate jdbc;
+
+    @BeforeEach
+    void cleanDatabase() {
+        jdbc.execute("TRUNCATE TABLE idempotency_keys, booking_events, payments, bookings, "
+                + "schedule_exceptions, schedules, resources, venues, users CASCADE");
+    }
+
+    protected UUID insertUser() {
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO users (id, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)",
+                id, id + "@test.com", "hash", "Test User", "CUSTOMER");
+        return id;
+    }
+}
