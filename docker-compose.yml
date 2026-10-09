@@ -27,6 +27,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/reservation
       DB_USERNAME: reservation
       DB_PASSWORD: reservation
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migration,classpath:db/dev
     ports:
       - "8080:8080"
     restart: unless-stopped
