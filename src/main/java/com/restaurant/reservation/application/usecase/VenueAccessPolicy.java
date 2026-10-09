@@ -28,6 +28,16 @@ public class VenueAccessPolicy {
         return venue;
     }
 
+    public boolean canManageResource(UUID resourceId, Actor actor) {
+        if (actor.isAdmin()) {
+            return true;
+        }
+        return resources.findById(resourceId)
+                .flatMap(resource -> venues.findById(resource.getVenueId()))
+                .map(venue -> venue.isOwnedBy(actor.id()))
+                .orElse(false);
+    }
+
     public Resource loadManageableResource(UUID resourceId, Actor actor) {
         Resource resource = resources.findById(resourceId)
                 .orElseThrow(() -> new NotFoundException("Resource " + resourceId + " not found"));
