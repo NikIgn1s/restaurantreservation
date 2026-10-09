@@ -28,6 +28,7 @@ services:
       DB_USERNAME: reservation
       DB_PASSWORD: reservation
       SPRING_FLYWAY_LOCATIONS: classpath:db/migration,classpath:db/dev
+      JWT_SECRET: docker-compose-secret-key-docker-compose-secret-key
     ports:
       - "8080:8080"
     restart: unless-stopped

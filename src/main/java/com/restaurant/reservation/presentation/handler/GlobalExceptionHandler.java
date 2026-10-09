@@ -1,8 +1,10 @@
 package com.restaurant.reservation.presentation.handler;
 
+import com.restaurant.reservation.domain.exception.EmailAlreadyUsedException;
 import com.restaurant.reservation.domain.exception.ForbiddenOperationException;
 import com.restaurant.reservation.domain.exception.IdempotencyKeyConflictException;
 import com.restaurant.reservation.domain.exception.InvalidBookingException;
+import com.restaurant.reservation.domain.exception.InvalidCredentialsException;
 import com.restaurant.reservation.domain.exception.InvalidBookingStateException;
 import com.restaurant.reservation.domain.exception.InvalidTimeSlotException;
 import com.restaurant.reservation.domain.exception.NotFoundException;
@@ -33,6 +35,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(AuthenticationRequiredException.class)
     public ProblemDetail handleAuthenticationRequired(AuthenticationRequiredException e) {
         return problem(HttpStatus.UNAUTHORIZED, "Authentication required", e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ProblemDetail handleInvalidCredentials(InvalidCredentialsException e) {
+        return problem(HttpStatus.UNAUTHORIZED, "Invalid credentials", e.getMessage());
+    }
+
+    @ExceptionHandler(EmailAlreadyUsedException.class)
+    public ProblemDetail handleEmailAlreadyUsed(EmailAlreadyUsedException e) {
+        return problem(HttpStatus.CONFLICT, "Email already registered", e.getMessage());
     }
 
     @ExceptionHandler(ForbiddenOperationException.class)

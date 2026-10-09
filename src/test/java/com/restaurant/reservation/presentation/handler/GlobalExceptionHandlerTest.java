@@ -4,9 +4,11 @@ import com.restaurant.reservation.application.usecase.CreateResourceUseCase;
 import com.restaurant.reservation.application.usecase.CreateVenueUseCase;
 import com.restaurant.reservation.application.usecase.ListVenueResourcesUseCase;
 import com.restaurant.reservation.application.usecase.ListVenuesUseCase;
+import com.restaurant.reservation.domain.exception.EmailAlreadyUsedException;
 import com.restaurant.reservation.domain.exception.ForbiddenOperationException;
 import com.restaurant.reservation.domain.exception.IdempotencyKeyConflictException;
 import com.restaurant.reservation.domain.exception.InvalidBookingException;
+import com.restaurant.reservation.domain.exception.InvalidCredentialsException;
 import com.restaurant.reservation.domain.exception.InvalidBookingStateException;
 import com.restaurant.reservation.domain.exception.InvalidTimeSlotException;
 import com.restaurant.reservation.domain.exception.NotFoundException;
@@ -58,6 +60,8 @@ class GlobalExceptionHandlerTest {
                 Arguments.of(new NotFoundException("missing"), 404, "Not found"),
                 Arguments.of(new ForbiddenOperationException("denied"), 403, "Forbidden"),
                 Arguments.of(new SlotNotAvailableException("taken"), 409, "Slot not available"),
+                Arguments.of(new EmailAlreadyUsedException("a@b.c"), 409, "Email already registered"),
+                Arguments.of(new InvalidCredentialsException(), 401, "Invalid credentials"),
                 Arguments.of(new InvalidBookingStateException(BookingStatus.CANCELLED, BookingStatus.CONFIRMED), 409,
                         "Invalid booking state"),
                 Arguments.of(new IdempotencyKeyConflictException("key"), 422, "Idempotency key conflict"),
