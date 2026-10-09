@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -34,6 +35,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import static com.restaurant.reservation.presentation.TestAuth.asUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -46,6 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(BookingController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import({WebConfig.class, CurrentActorArgumentResolver.class, BookingApiMapper.class})
 class BookingControllerTest {
 
@@ -80,7 +83,7 @@ class BookingControllerTest {
     }
 
     private MockHttpServletRequestBuilder asCustomer(MockHttpServletRequestBuilder request) {
-        return request.header("X-User-Id", USER_ID.toString()).header("X-User-Role", "CUSTOMER")
+        return request.with(asUser(USER_ID.toString(), "CUSTOMER"))
                 .contentType(MediaType.APPLICATION_JSON);
     }
 

@@ -6,6 +6,7 @@ import com.restaurant.reservation.presentation.mapper.BookingApiMapper;
 import com.restaurant.reservation.presentation.response.SlotResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -29,6 +30,7 @@ public class SlotController {
     private final BookingApiMapper mapper;
 
     @GetMapping
+    @SecurityRequirements
     @Operation(summary = "Free slots for a date",
             description = "The date is interpreted in the time zone of the venue. Booked and past slots are not returned")
     public List<SlotResponse> slots(@PathVariable UUID resourceId,

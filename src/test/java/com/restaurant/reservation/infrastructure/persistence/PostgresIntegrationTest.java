@@ -1,5 +1,8 @@
 package com.restaurant.reservation.infrastructure.persistence;
 
+import com.restaurant.reservation.domain.model.User;
+import com.restaurant.reservation.domain.model.UserRole;
+import com.restaurant.reservation.infrastructure.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -7,6 +10,7 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @SpringBootTest
@@ -22,6 +26,9 @@ public abstract class PostgresIntegrationTest {
     @Autowired
     protected JdbcTemplate jdbc;
 
+    @Autowired
+    protected JwtService jwtService;
+
     @BeforeEach
     void cleanDatabase() {
         jdbc.execute("TRUNCATE TABLE idempotency_keys, booking_events, payments, bookings, "
@@ -33,5 +40,10 @@ public abstract class PostgresIntegrationTest {
         jdbc.update("INSERT INTO users (id, email, password_hash, full_name, role) VALUES (?, ?, ?, ?, ?)",
                 id, id + "@test.com", "hash", "Test User", "CUSTOMER");
         return id;
+    }
+
+    protected String bearer(UUID userId, UserRole role) {
+        User user = new User(userId, userId + "@test.com", "hash", "Test User", role, Instant.now());
+        return "Bearer " + jwtService.issue(user).value();
     }
 }

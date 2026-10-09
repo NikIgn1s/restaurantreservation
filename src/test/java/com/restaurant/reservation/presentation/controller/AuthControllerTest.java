@@ -1,9 +1,11 @@
 package com.restaurant.reservation.presentation.controller;
 
+import com.restaurant.reservation.application.dto.Actor;
 import com.restaurant.reservation.application.dto.AuthResult;
 import com.restaurant.reservation.application.dto.LoginCommand;
 import com.restaurant.reservation.application.dto.RegisterUserCommand;
 import com.restaurant.reservation.application.port.IssuedToken;
+import com.restaurant.reservation.application.usecase.GetCurrentUserUseCase;
 import com.restaurant.reservation.application.usecase.LoginUseCase;
 import com.restaurant.reservation.application.usecase.RegisterUserUseCase;
 import com.restaurant.reservation.domain.exception.EmailAlreadyUsedException;
@@ -12,9 +14,12 @@ import com.restaurant.reservation.domain.exception.InvalidCredentialsException;
 import com.restaurant.reservation.domain.model.User;
 import com.restaurant.reservation.domain.model.UserRole;
 import com.restaurant.reservation.presentation.mapper.AuthApiMapper;
+import com.restaurant.reservation.presentation.resolver.CurrentActorArgumentResolver;
+import com.restaurant.reservation.presentation.resolver.WebConfig;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -23,17 +28,20 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 
+import static com.restaurant.reservation.presentation.TestAuth.asUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AuthController.class)
-@Import(AuthApiMapper.class)
+@AutoConfigureMockMvc(addFilters = false)
+@Import({WebConfig.class, CurrentActorArgumentResolver.class, AuthApiMapper.class})
 class AuthControllerTest {
 
     private static final Instant NOW = Instant.parse("2030-01-01T09:00:00Z");
@@ -47,6 +55,8 @@ class AuthControllerTest {
     private RegisterUserUseCase registerUser;
     @MockBean
     private LoginUseCase login;
+    @MockBean
+    private GetCurrentUserUseCase currentUser;
 
     private User user() {
         return User.register("anna@example.com", "hash", "Anna Kowalska", UserRole.CUSTOMER, NOW);
@@ -147,6 +157,30 @@ class AuthControllerTest {
                         .content("{\"email\": \"anna@example.com\", \"password\": \"nope\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.title").value("Invalid credentials"));
+    }
+
+    @Test
+    void returnsProfileOfAuthenticatedUser() throws Exception {
+        User user = user();
+        when(currentUser.execute(any())).thenReturn(user);
+
+        mockMvc.perform(get("/api/auth/me").with(asUser(user.getId(), UserRole.CUSTOMER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(user.getId().toString()))
+                .andExpect(jsonPath("$.email").value("anna@example.com"))
+                .andExpect(jsonPath("$.passwordHash").doesNotExist());
+
+        ArgumentCaptor<Actor> captor = ArgumentCaptor.forClass(Actor.class);
+        verify(currentUser).execute(captor.capture());
+        assertThat(captor.getValue().id()).isEqualTo(user.getId());
+        assertThat(captor.getValue().role()).isEqualTo(UserRole.CUSTOMER);
+    }
+
+    @Test
+    void profileRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.title").value("Authentication required"));
     }
 
     @Test

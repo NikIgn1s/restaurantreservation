@@ -18,6 +18,7 @@ import com.restaurant.reservation.presentation.resolver.WebConfig;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -28,6 +29,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
+import static com.restaurant.reservation.presentation.TestAuth.asUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -40,6 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(VenueController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import({WebConfig.class, CurrentActorArgumentResolver.class, VenueApiMapper.class})
 class VenueControllerTest {
 
@@ -69,8 +72,7 @@ class VenueControllerTest {
         when(createVenue.execute(any())).thenReturn(venue);
 
         mockMvc.perform(post("/api/venues")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_VENUE))
                 .andExpect(status().isCreated())
@@ -82,12 +84,11 @@ class VenueControllerTest {
     }
 
     @Test
-    void passesActorFromHeadersToUseCase() throws Exception {
+    void passesAuthenticatedActorToUseCase() throws Exception {
         when(createVenue.execute(any())).thenReturn(venue());
 
         mockMvc.perform(post("/api/venues")
-                .header("X-User-Id", OWNER_ID.toString())
-                .header("X-User-Role", "venue_owner")
+                .with(asUser(OWNER_ID.toString(), "venue_owner"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(VALID_VENUE));
 
@@ -99,7 +100,7 @@ class VenueControllerTest {
     }
 
     @Test
-    void requiresAuthenticationHeaders() throws Exception {
+    void requiresAuthenticatedPrincipal() throws Exception {
         mockMvc.perform(post("/api/venues").contentType(MediaType.APPLICATION_JSON).content(VALID_VENUE))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.title").value("Authentication required"));
@@ -108,30 +109,9 @@ class VenueControllerTest {
     }
 
     @Test
-    void rejectsUnknownRoleHeader() throws Exception {
-        mockMvc.perform(post("/api/venues")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "SUPERUSER")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_VENUE))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void rejectsMalformedUserIdHeader() throws Exception {
-        mockMvc.perform(post("/api/venues")
-                        .header("X-User-Id", "not-a-uuid")
-                        .header("X-User-Role", "CUSTOMER")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_VENUE))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void reportsEveryInvalidField() throws Exception {
         mockMvc.perform(post("/api/venues")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"  \", \"timezone\": \"\"}"))
                 .andExpect(status().isBadRequest())
@@ -146,8 +126,7 @@ class VenueControllerTest {
     @Test
     void rejectsUnknownTimezone() throws Exception {
         mockMvc.perform(post("/api/venues")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Bistro\", \"type\": \"RESTAURANT\", \"timezone\": \"Mars/Base\"}"))
                 .andExpect(status().isBadRequest());
@@ -158,8 +137,7 @@ class VenueControllerTest {
     @Test
     void rejectsUnknownVenueType() throws Exception {
         mockMvc.perform(post("/api/venues")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Bistro\", \"type\": \"CASTLE\", \"timezone\": \"UTC\"}"))
                 .andExpect(status().isBadRequest());
@@ -170,8 +148,7 @@ class VenueControllerTest {
         when(createVenue.execute(any())).thenThrow(new ForbiddenOperationException("Only venue owners can create venues"));
 
         mockMvc.perform(post("/api/venues")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "CUSTOMER")
+                        .with(asUser(OWNER_ID.toString(), "CUSTOMER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_VENUE))
                 .andExpect(status().isForbidden())
@@ -195,8 +172,7 @@ class VenueControllerTest {
         when(createResource.execute(any())).thenReturn(resource);
 
         mockMvc.perform(post("/api/venues/{id}/resources", venueId)
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Table 1\", \"capacity\": 4}"))
                 .andExpect(status().isCreated())
@@ -212,8 +188,7 @@ class VenueControllerTest {
     @Test
     void rejectsNonPositiveCapacity() throws Exception {
         mockMvc.perform(post("/api/venues/{id}/resources", UUID.randomUUID())
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Table 1\", \"capacity\": 0}"))
                 .andExpect(status().isBadRequest())

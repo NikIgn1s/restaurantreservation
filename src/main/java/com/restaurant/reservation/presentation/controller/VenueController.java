@@ -12,6 +12,7 @@ import com.restaurant.reservation.presentation.resolver.CurrentActor;
 import com.restaurant.reservation.presentation.response.ResourceResponse;
 import com.restaurant.reservation.presentation.response.VenueResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,7 @@ public class VenueController {
     }
 
     @GetMapping
+    @SecurityRequirements
     @Operation(summary = "List active venues")
     public List<VenueResponse> listVenues() {
         return listVenues.execute().stream().map(mapper::toResponse).toList();
@@ -61,6 +63,7 @@ public class VenueController {
     }
 
     @GetMapping("/{venueId}/resources")
+    @SecurityRequirements
     @Operation(summary = "List active resources of a venue")
     public List<ResourceResponse> listResources(@PathVariable UUID venueId) {
         return listResources.execute(venueId).stream().map(mapper::toResponse).toList();

@@ -2,6 +2,7 @@ package com.restaurant.reservation.presentation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.restaurant.reservation.domain.model.UserRole;
 import com.restaurant.reservation.infrastructure.persistence.PostgresIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +53,7 @@ class BookingApiIntegrationTest extends PostgresIntegrationTest {
 
     private ResultActions send(MockHttpServletRequestBuilder request, UUID userId, String role, String idempotencyKey,
                                String body) throws Exception {
-        request.header("X-User-Id", userId.toString()).header("X-User-Role", role).contentType(MediaType.APPLICATION_JSON);
+        request.header("Authorization", bearer(userId, UserRole.valueOf(role))).contentType(MediaType.APPLICATION_JSON);
         if (idempotencyKey != null) {
             request.header("Idempotency-Key", idempotencyKey);
         }

@@ -2,6 +2,7 @@ package com.restaurant.reservation.presentation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.restaurant.reservation.domain.model.UserRole;
 import com.restaurant.reservation.infrastructure.persistence.PostgresIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ class VenueScheduleApiIntegrationTest extends PostgresIntegrationTest {
     }
 
     private MockHttpServletRequestBuilder asOwner(MockHttpServletRequestBuilder request) {
-        return request.header("X-User-Id", ownerId.toString()).header("X-User-Role", "VENUE_OWNER")
+        return request.header("Authorization", bearer(ownerId, UserRole.VENUE_OWNER))
                 .contentType(MediaType.APPLICATION_JSON);
     }
 
@@ -106,8 +107,7 @@ class VenueScheduleApiIntegrationTest extends PostgresIntegrationTest {
     @Test
     void customerCannotCreateVenue() throws Exception {
         mockMvc.perform(post("/api/venues")
-                        .header("X-User-Id", insertUser().toString())
-                        .header("X-User-Role", "CUSTOMER")
+                        .header("Authorization", bearer(insertUser(), UserRole.CUSTOMER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Hack\", \"type\": \"RESTAURANT\", \"timezone\": \"UTC\"}"))
                 .andExpect(status().isForbidden());
@@ -117,17 +117,15 @@ class VenueScheduleApiIntegrationTest extends PostgresIntegrationTest {
     void foreignOwnerCannotAddResourceOrChangeSchedule() throws Exception {
         String venueId = createVenue();
         String resourceId = createResource(venueId);
-        String stranger = insertUser().toString();
+        String stranger = bearer(insertUser(), UserRole.VENUE_OWNER);
 
         mockMvc.perform(post("/api/venues/{id}/resources", venueId)
-                        .header("X-User-Id", stranger)
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .header("Authorization", stranger)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Table 2\", \"capacity\": 2}"))
                 .andExpect(status().isForbidden());
         mockMvc.perform(put("/api/resources/{id}/schedule/MONDAY", resourceId)
-                        .header("X-User-Id", stranger)
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .header("Authorization", stranger)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"openTime\": \"10:00\", \"closeTime\": \"22:00\", \"slotMinutes\": 60}"))
                 .andExpect(status().isForbidden());
@@ -147,6 +145,6 @@ class VenueScheduleApiIntegrationTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.info.title").value("Reservation API"))
                 .andExpect(jsonPath("$.paths['/api/venues']").exists())
                 .andExpect(jsonPath("$.paths['/api/resources/{resourceId}/schedule/{dayOfWeek}']").exists())
-                .andExpect(jsonPath("$.components.securitySchemes.userId.name").value("X-User-Id"));
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"));
     }
 }

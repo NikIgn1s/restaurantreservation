@@ -23,6 +23,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -32,6 +33,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.DateTimeException;
 import java.util.stream.Stream;
 
+import static com.restaurant.reservation.presentation.TestAuth.asUser;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -41,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(VenueController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import({WebConfig.class, CurrentActorArgumentResolver.class, VenueApiMapper.class})
 class GlobalExceptionHandlerTest {
 
@@ -108,8 +111,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void malformedJsonGivesBadRequest() throws Exception {
         mockMvc.perform(post("/api/venues")
-                        .header("X-User-Id", "11111111-1111-1111-1111-111111111111")
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser("11111111-1111-1111-1111-111111111111", "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{not json"))
                 .andExpect(status().isBadRequest());
@@ -118,8 +120,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void unsupportedMediaTypeGivesUnsupportedMediaType() throws Exception {
         mockMvc.perform(post("/api/venues")
-                        .header("X-User-Id", "11111111-1111-1111-1111-111111111111")
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser("11111111-1111-1111-1111-111111111111", "VENUE_OWNER"))
                         .contentType(MediaType.TEXT_PLAIN)
                         .content("name=Bistro"))
                 .andExpect(status().isUnsupportedMediaType());

@@ -13,8 +13,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    private static final String USER_ID = "userId";
-    private static final String USER_ROLE = "userRole";
+    static final String BEARER_AUTH = "bearerAuth";
 
     static {
         SpringDocUtils.getConfig().addRequestWrapperToIgnore(Actor.class);
@@ -29,23 +28,18 @@ public class OpenApiConfig {
                         .description("""
                                 Booking platform for restaurants, coworkings and sport venues.
 
-                                Temporary authentication: press Authorize and fill X-User-Id and X-User-Role.
-                                Seeded users in the docker profile:
-                                owner 11111111-1111-1111-1111-111111111111 (VENUE_OWNER),
-                                customer 22222222-2222-2222-2222-222222222222 (CUSTOMER),
-                                customer 33333333-3333-3333-3333-333333333333 (CUSTOMER),
-                                admin 44444444-4444-4444-4444-444444444444 (ADMIN).
-                                """))
-                .components(new Components()
-                        .addSecuritySchemes(USER_ID, headerScheme("X-User-Id"))
-                        .addSecuritySchemes(USER_ROLE, headerScheme("X-User-Role")))
-                .addSecurityItem(new SecurityRequirement().addList(USER_ID).addList(USER_ROLE));
-    }
+                                How to authorize:
+                                1. Call POST /api/auth/login (or POST /api/auth/register first).
+                                2. Copy accessToken from the response.
+                                3. Press Authorize and paste the token without the Bearer prefix.
 
-    private static SecurityScheme headerScheme(String headerName) {
-        return new SecurityScheme()
-                .type(SecurityScheme.Type.APIKEY)
-                .in(SecurityScheme.In.HEADER)
-                .name(headerName);
+                                Dev users in the docker profile, password password123:
+                                owner@dev.local (VENUE_OWNER), alice@dev.local and bob@dev.local (CUSTOMER), admin@dev.local (ADMIN).
+                                """))
+                .components(new Components().addSecuritySchemes(BEARER_AUTH, new SecurityScheme()
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT")))
+                .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
     }
 }

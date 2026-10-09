@@ -12,6 +12,7 @@ import com.restaurant.reservation.presentation.response.ScheduleExceptionRespons
 import com.restaurant.reservation.presentation.response.ScheduleResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class ScheduleController {
     private final ScheduleApiMapper mapper;
 
     @GetMapping
+    @SecurityRequirements
     @Operation(summary = "Weekly schedule of a resource")
     public List<ScheduleResponse> schedule(@PathVariable UUID resourceId) {
         return getSchedule.execute(resourceId).stream().map(mapper::toResponse).toList();

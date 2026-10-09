@@ -14,6 +14,7 @@ import com.restaurant.reservation.presentation.resolver.WebConfig;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -26,6 +27,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
+import static com.restaurant.reservation.presentation.TestAuth.asUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -37,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ScheduleController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import({WebConfig.class, CurrentActorArgumentResolver.class, ScheduleApiMapper.class})
 class ScheduleControllerTest {
 
@@ -58,8 +61,7 @@ class ScheduleControllerTest {
         when(setSchedule.execute(any())).thenReturn(schedule);
 
         mockMvc.perform(put("/api/resources/{id}/schedule/{day}", RESOURCE_ID, "MONDAY")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"openTime\": \"10:00\", \"closeTime\": \"22:00\", \"slotMinutes\": 60}"))
                 .andExpect(status().isOk())
@@ -87,8 +89,7 @@ class ScheduleControllerTest {
     @Test
     void rejectsMissingFields() throws Exception {
         mockMvc.perform(put("/api/resources/{id}/schedule/{day}", RESOURCE_ID, "MONDAY")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -102,8 +103,7 @@ class ScheduleControllerTest {
     @Test
     void rejectsTooShortSlots() throws Exception {
         mockMvc.perform(put("/api/resources/{id}/schedule/{day}", RESOURCE_ID, "MONDAY")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"openTime\": \"10:00\", \"closeTime\": \"22:00\", \"slotMinutes\": 1}"))
                 .andExpect(status().isBadRequest())
@@ -113,8 +113,7 @@ class ScheduleControllerTest {
     @Test
     void rejectsMalformedTime() throws Exception {
         mockMvc.perform(put("/api/resources/{id}/schedule/{day}", RESOURCE_ID, "MONDAY")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"openTime\": \"morning\", \"closeTime\": \"22:00\", \"slotMinutes\": 60}"))
                 .andExpect(status().isBadRequest());
@@ -123,8 +122,7 @@ class ScheduleControllerTest {
     @Test
     void rejectsUnknownWeekday() throws Exception {
         mockMvc.perform(put("/api/resources/{id}/schedule/{day}", RESOURCE_ID, "FUNDAY")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"openTime\": \"10:00\", \"closeTime\": \"22:00\", \"slotMinutes\": 60}"))
                 .andExpect(status().isBadRequest());
@@ -135,8 +133,7 @@ class ScheduleControllerTest {
         when(setSchedule.execute(any())).thenThrow(new IllegalArgumentException("Open time must be before close time"));
 
         mockMvc.perform(put("/api/resources/{id}/schedule/{day}", RESOURCE_ID, "MONDAY")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"openTime\": \"22:00\", \"closeTime\": \"10:00\", \"slotMinutes\": 60}"))
                 .andExpect(status().isBadRequest())
@@ -148,8 +145,7 @@ class ScheduleControllerTest {
         when(setSchedule.execute(any())).thenThrow(new ForbiddenOperationException("Venue belongs to another owner"));
 
         mockMvc.perform(put("/api/resources/{id}/schedule/{day}", RESOURCE_ID, "MONDAY")
-                        .header("X-User-Id", UUID.randomUUID().toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(UUID.randomUUID().toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"openTime\": \"10:00\", \"closeTime\": \"22:00\", \"slotMinutes\": 60}"))
                 .andExpect(status().isForbidden());
@@ -174,8 +170,7 @@ class ScheduleControllerTest {
         when(addException.execute(any())).thenReturn(ScheduleException.closedDay(RESOURCE_ID, date));
 
         mockMvc.perform(put("/api/resources/{id}/schedule/exceptions/{date}", RESOURCE_ID, "2030-12-25")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"closed\": true}"))
                 .andExpect(status().isOk())
@@ -196,8 +191,7 @@ class ScheduleControllerTest {
                 .thenReturn(ScheduleException.specialHours(RESOURCE_ID, date, LocalTime.of(12, 0), LocalTime.of(16, 0)));
 
         mockMvc.perform(put("/api/resources/{id}/schedule/exceptions/{date}", RESOURCE_ID, "2030-12-31")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"closed\": false, \"openTime\": \"12:00\", \"closeTime\": \"16:00\"}"))
                 .andExpect(status().isOk())
@@ -209,8 +203,7 @@ class ScheduleControllerTest {
     @Test
     void rejectsExceptionWithoutClosedFlag() throws Exception {
         mockMvc.perform(put("/api/resources/{id}/schedule/exceptions/{date}", RESOURCE_ID, "2030-12-31")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -220,8 +213,7 @@ class ScheduleControllerTest {
     @Test
     void rejectsMalformedDate() throws Exception {
         mockMvc.perform(put("/api/resources/{id}/schedule/exceptions/{date}", RESOURCE_ID, "31-12-2030")
-                        .header("X-User-Id", OWNER_ID.toString())
-                        .header("X-User-Role", "VENUE_OWNER")
+                        .with(asUser(OWNER_ID.toString(), "VENUE_OWNER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"closed\": true}"))
                 .andExpect(status().isBadRequest());
