@@ -135,6 +135,12 @@ public class BookingRepositoryAdapter implements BookingRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Booking> findConfirmedAwaitingReminder(Instant from, Instant to) {
+        return jpa.findAwaitingReminder(from, to).stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Booking> findConfirmedStartingBetween(Instant from, Instant to) {
         return jpa.findByStatusAndStartAtGreaterThanEqualAndStartAtLessThan(BookingStatus.CONFIRMED, from, to).stream()
                 .map(mapper::toDomain)

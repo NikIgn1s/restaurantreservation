@@ -21,4 +21,6 @@ public interface BookingRepository {
     List<Booking> findPendingCreatedBefore(Instant threshold);
 
     List<Booking> findConfirmedStartingBetween(Instant from, Instant to);
+
+    List<Booking> findConfirmedAwaitingReminder(Instant from, Instant to);
 }

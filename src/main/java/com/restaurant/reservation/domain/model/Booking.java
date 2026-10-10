@@ -17,10 +17,12 @@ public class Booking {
     private boolean depositRequired;
     private Double noShowProbability;
     private final Instant createdAt;
+    private Instant reminderSentAt;
     private final long version;
 
     public Booking(UUID id, UUID resourceId, UUID userId, TimeSlot slot, int guests, BookingStatus status,
-                   boolean depositRequired, Double noShowProbability, Instant createdAt, long version) {
+                   boolean depositRequired, Double noShowProbability, Instant createdAt, Instant reminderSentAt,
+                   long version) {
         this.id = id;
         this.resourceId = resourceId;
         this.userId = userId;
@@ -30,6 +32,7 @@ public class Booking {
         this.depositRequired = depositRequired;
         this.noShowProbability = noShowProbability;
         this.createdAt = createdAt;
+        this.reminderSentAt = reminderSentAt;
         this.version = version;
     }
 
@@ -44,7 +47,7 @@ public class Booking {
             throw new InvalidBookingException("Booking cannot start in the past");
         }
         return new Booking(UUID.randomUUID(), resource.getId(), userId, slot, guests,
-                BookingStatus.PENDING, false, null, now, 0L);
+                BookingStatus.PENDING, false, null, now, null, 0L);
     }
 
     public void assessNoShowRisk(double probability, double depositThreshold) {
@@ -70,6 +73,17 @@ public class Booking {
 
     public void markNoShow() {
         transitionTo(BookingStatus.NO_SHOW);
+    }
+
+    public boolean needsReminder() {
+        return status == BookingStatus.CONFIRMED && reminderSentAt == null;
+    }
+
+    public void markReminderSent(Instant when) {
+        if (status != BookingStatus.CONFIRMED) {
+            throw new InvalidBookingException("Reminder can be sent only for a confirmed booking");
+        }
+        this.reminderSentAt = when;
     }
 
     public boolean isOwnedBy(UUID candidate) {
@@ -117,6 +131,10 @@ public class Booking {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getReminderSentAt() {
+        return reminderSentAt;
     }
 
     public long getVersion() {

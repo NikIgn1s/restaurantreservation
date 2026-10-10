@@ -12,12 +12,14 @@ public class BookingMapper {
         long version = entity.getVersion() == null ? 0L : entity.getVersion();
         return new Booking(entity.getId(), entity.getResourceId(), entity.getUserId(),
                 new TimeSlot(entity.getStartAt(), entity.getEndAt()), entity.getGuests(), entity.getStatus(),
-                entity.isDepositRequired(), entity.getNoShowProbability(), entity.getCreatedAt(), version);
+                entity.isDepositRequired(), entity.getNoShowProbability(), entity.getCreatedAt(),
+                entity.getReminderSentAt(), version);
     }
 
     public BookingEntity toEntity(Booking booking) {
         return new BookingEntity(booking.getId(), booking.getResourceId(), booking.getUserId(),
                 booking.getSlot().start(), booking.getSlot().end(), booking.getGuests(), booking.getStatus(),
-                booking.isDepositRequired(), booking.getNoShowProbability(), booking.getCreatedAt(), booking.getVersion());
+                booking.isDepositRequired(), booking.getNoShowProbability(), booking.getCreatedAt(),
+                booking.getReminderSentAt(), booking.getVersion());
     }
 }

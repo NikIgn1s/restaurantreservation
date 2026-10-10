@@ -18,6 +18,15 @@ spring:
     locations: classpath:db/migration
 
 app:
+  booking:
+    pending-ttl: ${BOOKING_PENDING_TTL:PT30M}
+    reminder-lead: ${BOOKING_REMINDER_LEAD:PT2H}
+  scheduler:
+    enabled: ${SCHEDULER_ENABLED:true}
+    expiration-interval: PT1M
+    reminder-interval: PT1M
+    initial-delay: PT30S
+    min-lock: PT10S
   jwt:
     secret: ${JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
     ttl: ${JWT_TTL:PT1H}

@@ -200,6 +200,49 @@ class BookingTest {
     }
 
     @Test
+    void newBookingDoesNotNeedReminderUntilConfirmed() {
+        Booking booking = newBooking();
+
+        assertThat(booking.needsReminder()).isFalse();
+        assertThat(booking.getReminderSentAt()).isNull();
+    }
+
+    @Test
+    void confirmedBookingNeedsReminder() {
+        Booking booking = newBooking();
+        booking.confirm();
+
+        assertThat(booking.needsReminder()).isTrue();
+    }
+
+    @Test
+    void markingReminderSentRecordsTimeAndStopsFurtherReminders() {
+        Booking booking = newBooking();
+        booking.confirm();
+
+        booking.markReminderSent(NOW);
+
+        assertThat(booking.getReminderSentAt()).isEqualTo(NOW);
+        assertThat(booking.needsReminder()).isFalse();
+    }
+
+    @Test
+    void reminderCannotBeMarkedForPendingBooking() {
+        Booking booking = newBooking();
+
+        assertThatThrownBy(() -> booking.markReminderSent(NOW)).isInstanceOf(InvalidBookingException.class);
+        assertThat(booking.getReminderSentAt()).isNull();
+    }
+
+    @Test
+    void reminderCannotBeMarkedForCancelledBooking() {
+        Booking booking = newBooking();
+        booking.cancel();
+
+        assertThatThrownBy(() -> booking.markReminderSent(NOW)).isInstanceOf(InvalidBookingException.class);
+    }
+
+    @Test
     void ownershipIsCheckedByUserId() {
         Booking booking = newBooking();
 

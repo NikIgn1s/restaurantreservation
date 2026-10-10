@@ -28,6 +28,16 @@ public interface BookingJpaRepository extends JpaRepository<BookingEntity, UUID>
                                         @Param("start") Instant start,
                                         @Param("end") Instant end);
 
+    @Query("""
+            select b from BookingEntity b
+            where b.status = com.restaurant.reservation.domain.model.BookingStatus.CONFIRMED
+              and b.reminderSentAt is null
+              and b.startAt >= :from
+              and b.startAt < :to
+            order by b.startAt
+            """)
+    List<BookingEntity> findAwaitingReminder(@Param("from") Instant from, @Param("to") Instant to);
+
     List<BookingEntity> findByStatusAndCreatedAtBefore(BookingStatus status, Instant threshold);
 
     List<BookingEntity> findByStatusAndStartAtGreaterThanEqualAndStartAtLessThan(BookingStatus status, Instant from, Instant to);

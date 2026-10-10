@@ -13,7 +13,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import java.time.Instant;
 import java.util.UUID;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.scheduler.enabled=false")
 public abstract class PostgresIntegrationTest {
 
     @ServiceConnection
