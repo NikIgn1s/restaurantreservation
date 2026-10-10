@@ -1,5 +1,7 @@
 package com.restaurant.reservation.infrastructure.persistence.adapter;
 
+import com.restaurant.reservation.domain.exception.ConcurrentBookingModificationException;
+import com.restaurant.reservation.domain.exception.SlotNotAvailableException;
 import com.restaurant.reservation.domain.model.Booking;
 import com.restaurant.reservation.domain.model.BookingStatus;
 import com.restaurant.reservation.domain.model.TimeSlot;
@@ -8,10 +10,16 @@ import com.restaurant.reservation.infrastructure.persistence.entity.BookingEntit
 import com.restaurant.reservation.infrastructure.persistence.mapper.BookingMapper;
 import com.restaurant.reservation.infrastructure.persistence.repository.BookingJpaRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.StaleObjectStateException;
+import org.springframework.core.NestedExceptionUtils;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -22,6 +30,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class BookingRepositoryAdapter implements BookingRepository {
 
+    private static final String OVERLAP_CONSTRAINT = "ex_bookings_no_overlap";
+    private static final String DEADLOCK_DETECTED = "40P01";
+    private static final String SERIALIZATION_FAILURE = "40001";
+
     private final BookingJpaRepository jpa;
     private final BookingMapper mapper;
     private final EntityManager entityManager;
@@ -29,14 +41,65 @@ public class BookingRepositoryAdapter implements BookingRepository {
     @Override
     @Transactional
     public Booking save(Booking booking) {
-        BookingEntity entity = mapper.toEntity(booking);
-        if (jpa.existsById(entity.getId())) {
-            return mapper.toDomain(jpa.saveAndFlush(entity));
+        boolean exists = jpa.existsById(booking.getId());
+        try {
+            return exists ? update(booking) : insert(booking);
+        } catch (RuntimeException e) {
+            if (violatesOverlapConstraint(e) || (!exists && isLockConflict(e))) {
+                throw new SlotNotAvailableException("The slot was taken by another booking");
+            }
+            if (isOptimisticLockFailure(e)) {
+                throw new ConcurrentBookingModificationException(booking.getId());
+            }
+            throw e;
         }
+    }
+
+    private Booking update(Booking booking) {
+        return mapper.toDomain(jpa.saveAndFlush(mapper.toEntity(booking)));
+    }
+
+    private Booking insert(Booking booking) {
+        BookingEntity entity = mapper.toEntity(booking);
         entity.setVersion(null);
         entityManager.persist(entity);
         entityManager.flush();
         return mapper.toDomain(entity);
+    }
+
+    private static boolean violatesOverlapConstraint(Throwable error) {
+        String message = NestedExceptionUtils.getMostSpecificCause(error).getMessage();
+        return message != null && message.contains(OVERLAP_CONSTRAINT);
+    }
+
+    private static boolean isLockConflict(Throwable error) {
+        for (Throwable current = error; current != null; current = current.getCause()) {
+            if (current instanceof ConcurrencyFailureException) {
+                return true;
+            }
+            if (current instanceof SQLException sql
+                    && (DEADLOCK_DETECTED.equals(sql.getSQLState()) || SERIALIZATION_FAILURE.equals(sql.getSQLState()))) {
+                return true;
+            }
+            if (current.getCause() == current) {
+                break;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isOptimisticLockFailure(Throwable error) {
+        for (Throwable current = error; current != null; current = current.getCause()) {
+            if (current instanceof OptimisticLockingFailureException
+                    || current instanceof OptimisticLockException
+                    || current instanceof StaleObjectStateException) {
+                return true;
+            }
+            if (current.getCause() == current) {
+                break;
+            }
+        }
+        return false;
     }
 
     @Override

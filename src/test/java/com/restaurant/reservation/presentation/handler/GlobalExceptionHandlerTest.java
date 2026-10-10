@@ -4,6 +4,7 @@ import com.restaurant.reservation.application.usecase.CreateResourceUseCase;
 import com.restaurant.reservation.application.usecase.CreateVenueUseCase;
 import com.restaurant.reservation.application.usecase.ListVenueResourcesUseCase;
 import com.restaurant.reservation.application.usecase.ListVenuesUseCase;
+import com.restaurant.reservation.domain.exception.ConcurrentBookingModificationException;
 import com.restaurant.reservation.domain.exception.EmailAlreadyUsedException;
 import com.restaurant.reservation.domain.exception.ForbiddenOperationException;
 import com.restaurant.reservation.domain.exception.IdempotencyKeyConflictException;
@@ -27,10 +28,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.DateTimeException;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static com.restaurant.reservation.presentation.TestAuth.asUser;
@@ -63,6 +67,9 @@ class GlobalExceptionHandlerTest {
                 Arguments.of(new NotFoundException("missing"), 404, "Not found"),
                 Arguments.of(new ForbiddenOperationException("denied"), 403, "Forbidden"),
                 Arguments.of(new SlotNotAvailableException("taken"), 409, "Slot not available"),
+                Arguments.of(new ConcurrentBookingModificationException(UUID.randomUUID()), 409, "Concurrent modification"),
+                Arguments.of(new DataIntegrityViolationException("duplicate key"), 409, "Data conflict"),
+                Arguments.of(new CannotAcquireLockException("deadlock detected"), 409, "Data conflict"),
                 Arguments.of(new EmailAlreadyUsedException("a@b.c"), 409, "Email already registered"),
                 Arguments.of(new InvalidCredentialsException(), 401, "Invalid credentials"),
                 Arguments.of(new InvalidBookingStateException(BookingStatus.CANCELLED, BookingStatus.CONFIRMED), 409,

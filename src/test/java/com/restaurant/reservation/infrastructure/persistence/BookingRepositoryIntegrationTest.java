@@ -12,8 +12,8 @@ import com.restaurant.reservation.domain.repository.VenueRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import com.restaurant.reservation.domain.exception.ConcurrentBookingModificationException;
+import com.restaurant.reservation.domain.exception.SlotNotAvailableException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -93,7 +93,7 @@ class BookingRepositoryIntegrationTest extends PostgresIntegrationTest {
         bookings.save(newBooking(slot(0, 60)));
 
         assertThatThrownBy(() -> bookings.save(newBooking(slot(30, 90))))
-                .isInstanceOf(DataIntegrityViolationException.class);
+                .isInstanceOf(SlotNotAvailableException.class);
     }
 
     @Test
@@ -101,7 +101,7 @@ class BookingRepositoryIntegrationTest extends PostgresIntegrationTest {
         bookings.save(newBooking(slot(0, 120)));
 
         assertThatThrownBy(() -> bookings.save(newBooking(slot(30, 60))))
-                .isInstanceOf(DataIntegrityViolationException.class);
+                .isInstanceOf(SlotNotAvailableException.class);
     }
 
     @Test
@@ -154,7 +154,7 @@ class BookingRepositoryIntegrationTest extends PostgresIntegrationTest {
         secondReader.cancel();
 
         assertThatThrownBy(() -> bookings.save(secondReader))
-                .isInstanceOf(ObjectOptimisticLockingFailureException.class);
+                .isInstanceOf(ConcurrentBookingModificationException.class);
         assertThat(bookings.findById(saved.getId()).orElseThrow().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
     }
 

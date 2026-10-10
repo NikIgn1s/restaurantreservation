@@ -1,5 +1,6 @@
 package com.restaurant.reservation.presentation.handler;
 
+import com.restaurant.reservation.domain.exception.ConcurrentBookingModificationException;
 import com.restaurant.reservation.domain.exception.EmailAlreadyUsedException;
 import com.restaurant.reservation.domain.exception.ForbiddenOperationException;
 import com.restaurant.reservation.domain.exception.IdempotencyKeyConflictException;
@@ -11,6 +12,9 @@ import com.restaurant.reservation.domain.exception.NotFoundException;
 import com.restaurant.reservation.domain.exception.SlotNotAvailableException;
 import com.restaurant.reservation.presentation.resolver.AuthenticationRequiredException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.NestedRuntimeException;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -60,6 +64,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(SlotNotAvailableException.class)
     public ProblemDetail handleSlotNotAvailable(SlotNotAvailableException e) {
         return problem(HttpStatus.CONFLICT, "Slot not available", e.getMessage());
+    }
+
+    @ExceptionHandler(ConcurrentBookingModificationException.class)
+    public ProblemDetail handleConcurrentModification(ConcurrentBookingModificationException e) {
+        return problem(HttpStatus.CONFLICT, "Concurrent modification", e.getMessage());
+    }
+
+    @ExceptionHandler({DataIntegrityViolationException.class, ConcurrencyFailureException.class})
+    public ProblemDetail handleDataConflict(NestedRuntimeException e) {
+        log.warn("Data conflict: {}", e.getMostSpecificCause().getMessage());
+        return problem(HttpStatus.CONFLICT, "Data conflict", "The request conflicts with the current state, try again");
     }
 
     @ExceptionHandler(InvalidBookingStateException.class)
