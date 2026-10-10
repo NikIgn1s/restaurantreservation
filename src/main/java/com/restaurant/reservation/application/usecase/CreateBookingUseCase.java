@@ -85,7 +85,7 @@ public class CreateBookingUseCase {
 
     private void ensureSlotIsOffered(CreateBookingCommand command, Venue venue) {
         var date = command.slot().start().atZone(venue.getTimezone()).toLocalDate();
-        boolean offered = availableSlots.execute(new AvailableSlotsQuery(command.resourceId(), date))
+        boolean offered = availableSlots.executeFresh(new AvailableSlotsQuery(command.resourceId(), date))
                 .contains(command.slot());
         if (!offered) {
             throw new SlotNotAvailableException("Requested slot is not available");

@@ -11,8 +11,10 @@ import com.restaurant.reservation.infrastructure.persistence.mapper.BookingMappe
 import com.restaurant.reservation.infrastructure.persistence.repository.BookingJpaRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.OptimisticLockException;
+import com.restaurant.reservation.application.event.ResourceSlotsChanged;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.StaleObjectStateException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -37,13 +39,18 @@ public class BookingRepositoryAdapter implements BookingRepository {
     private final BookingJpaRepository jpa;
     private final BookingMapper mapper;
     private final EntityManager entityManager;
+    private final ApplicationEventPublisher events;
 
     @Override
     @Transactional
     public Booking save(Booking booking) {
         boolean exists = jpa.existsById(booking.getId());
         try {
-            return exists ? update(booking) : insert(booking);
+            Booking saved = exists ? update(booking) : insert(booking);
+            if (!exists || !saved.getStatus().occupiesSlot()) {
+                events.publishEvent(new ResourceSlotsChanged(saved.getResourceId()));
+            }
+            return saved;
         } catch (RuntimeException e) {
             if (violatesOverlapConstraint(e) || (!exists && isLockConflict(e))) {
                 throw new SlotNotAvailableException("The slot was taken by another booking");

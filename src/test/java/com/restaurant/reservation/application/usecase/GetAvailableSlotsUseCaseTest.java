@@ -1,6 +1,7 @@
 package com.restaurant.reservation.application.usecase;
 
 import com.restaurant.reservation.application.dto.AvailableSlotsQuery;
+import com.restaurant.reservation.application.port.SlotCache;
 import com.restaurant.reservation.domain.exception.NotFoundException;
 import com.restaurant.reservation.domain.model.Booking;
 import com.restaurant.reservation.domain.model.Resource;
@@ -34,6 +35,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -53,6 +55,8 @@ class GetAvailableSlotsUseCaseTest {
     private ScheduleRepository schedules;
     @Mock
     private BookingRepository bookings;
+    @Mock
+    private SlotCache cache;
 
     private GetAvailableSlotsUseCase useCase;
     private Venue venue;
@@ -62,7 +66,7 @@ class GetAvailableSlotsUseCaseTest {
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
-        useCase = new GetAvailableSlotsUseCase(resources, venues, schedules, bookings, clock);
+        useCase = new GetAvailableSlotsUseCase(resources, venues, schedules, bookings, cache, clock);
         venue = Venue.create(UUID.randomUUID(), "Bistro", VenueType.RESTAURANT, "Main st 1", ZoneId.of("UTC"));
         table = Resource.create(venue.getId(), "Table 1", 4);
         monday = Schedule.create(table.getId(), DayOfWeek.MONDAY, LocalTime.of(10, 0), LocalTime.of(13, 0), 60);
@@ -158,6 +162,88 @@ class GetAvailableSlotsUseCaseTest {
         assertThat(useCase.execute(new AvailableSlotsQuery(table.getId(), MONDAY)))
                 .extracting(TimeSlot::start)
                 .containsExactly(utc(14), utc(15));
+    }
+
+    @Test
+    void servesSlotsFromCacheWithoutTouchingTheDatabase() {
+        List<TimeSlot> cached = List.of(new TimeSlot(utc(10), utc(11)), new TimeSlot(utc(12), utc(13)));
+        when(cache.get(table.getId(), MONDAY)).thenReturn(Optional.of(cached));
+
+        assertThat(useCase.execute(new AvailableSlotsQuery(table.getId(), MONDAY))).containsExactlyElementsOf(cached);
+
+        verifyNoInteractions(resources, venues, schedules, bookings);
+    }
+
+    @Test
+    void cachedSlotsThatAlreadyStartedAreFilteredOut() {
+        TimeSlot past = new TimeSlot(Instant.parse("2029-12-31T10:00:00Z"), Instant.parse("2029-12-31T11:00:00Z"));
+        TimeSlot future = new TimeSlot(utc(10), utc(11));
+        when(cache.get(table.getId(), MONDAY)).thenReturn(Optional.of(List.of(past, future)));
+
+        assertThat(useCase.execute(new AvailableSlotsQuery(table.getId(), MONDAY))).containsExactly(future);
+    }
+
+    @Test
+    void cacheMissStoresTheComputedSlots() {
+        givenResourceAndVenue();
+        when(schedules.findByResourceId(table.getId())).thenReturn(List.of(monday));
+        when(schedules.findException(table.getId(), MONDAY)).thenReturn(Optional.empty());
+        when(bookings.findActiveByResourceAndSlot(any(), any())).thenReturn(List.of());
+
+        useCase.execute(new AvailableSlotsQuery(table.getId(), MONDAY));
+
+        ArgumentCaptor<List<TimeSlot>> stored = ArgumentCaptor.forClass(List.class);
+        verify(cache).put(eq(table.getId()), eq(MONDAY), stored.capture());
+        assertThat(stored.getValue()).extracting(TimeSlot::start).containsExactly(utc(10), utc(11), utc(12));
+    }
+
+    @Test
+    void cacheKeepsSlotsThatHaveStartedSoTheyAreFilteredPerRequest() {
+        Clock lateClock = Clock.fixed(MONDAY.atTime(11, 30).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
+        GetAvailableSlotsUseCase lateUseCase = new GetAvailableSlotsUseCase(resources, venues, schedules, bookings, cache, lateClock);
+        givenResourceAndVenue();
+        when(schedules.findByResourceId(table.getId())).thenReturn(List.of(monday));
+        when(schedules.findException(table.getId(), MONDAY)).thenReturn(Optional.empty());
+        when(bookings.findActiveByResourceAndSlot(any(), any())).thenReturn(List.of());
+
+        List<TimeSlot> result = lateUseCase.execute(new AvailableSlotsQuery(table.getId(), MONDAY));
+
+        ArgumentCaptor<List<TimeSlot>> stored = ArgumentCaptor.forClass(List.class);
+        verify(cache).put(eq(table.getId()), eq(MONDAY), stored.capture());
+        assertThat(stored.getValue()).hasSize(3);
+        assertThat(result).extracting(TimeSlot::start).containsExactly(utc(12));
+    }
+
+    @Test
+    void emptyResultIsCachedToo() {
+        givenResourceAndVenue();
+        table.deactivate();
+
+        useCase.execute(new AvailableSlotsQuery(table.getId(), MONDAY));
+
+        verify(cache).put(table.getId(), MONDAY, List.of());
+    }
+
+    @Test
+    void unknownResourceIsNeverCached() {
+        when(resources.findById(table.getId())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> useCase.execute(new AvailableSlotsQuery(table.getId(), MONDAY)))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(cache, never()).put(any(), any(), any());
+    }
+
+    @Test
+    void freshLookupIgnoresAndDoesNotTouchTheCache() {
+        givenResourceAndVenue();
+        when(schedules.findByResourceId(table.getId())).thenReturn(List.of(monday));
+        when(schedules.findException(table.getId(), MONDAY)).thenReturn(Optional.empty());
+        when(bookings.findActiveByResourceAndSlot(any(), any())).thenReturn(List.of());
+
+        assertThat(useCase.executeFresh(new AvailableSlotsQuery(table.getId(), MONDAY))).hasSize(3);
+
+        verifyNoInteractions(cache);
     }
 
     @Test

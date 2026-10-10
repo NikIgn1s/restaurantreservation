@@ -6,7 +6,9 @@ import com.restaurant.reservation.domain.repository.ScheduleRepository;
 import com.restaurant.reservation.infrastructure.persistence.mapper.ScheduleMapper;
 import com.restaurant.reservation.infrastructure.persistence.repository.ScheduleExceptionJpaRepository;
 import com.restaurant.reservation.infrastructure.persistence.repository.ScheduleJpaRepository;
+import com.restaurant.reservation.application.event.ResourceSlotsChanged;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,11 +24,14 @@ public class ScheduleRepositoryAdapter implements ScheduleRepository {
     private final ScheduleJpaRepository schedules;
     private final ScheduleExceptionJpaRepository exceptions;
     private final ScheduleMapper mapper;
+    private final ApplicationEventPublisher events;
 
     @Override
     @Transactional
     public Schedule save(Schedule schedule) {
-        return mapper.toDomain(schedules.saveAndFlush(mapper.toEntity(schedule)));
+        Schedule saved = mapper.toDomain(schedules.saveAndFlush(mapper.toEntity(schedule)));
+        events.publishEvent(new ResourceSlotsChanged(saved.getResourceId()));
+        return saved;
     }
 
     @Override
@@ -38,7 +43,9 @@ public class ScheduleRepositoryAdapter implements ScheduleRepository {
     @Override
     @Transactional
     public ScheduleException saveException(ScheduleException exception) {
-        return mapper.toDomain(exceptions.saveAndFlush(mapper.toEntity(exception)));
+        ScheduleException saved = mapper.toDomain(exceptions.saveAndFlush(mapper.toEntity(exception)));
+        events.publishEvent(new ResourceSlotsChanged(saved.getResourceId()));
+        return saved;
     }
 
     @Override

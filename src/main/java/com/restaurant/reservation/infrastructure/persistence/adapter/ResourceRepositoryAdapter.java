@@ -4,7 +4,9 @@ import com.restaurant.reservation.domain.model.Resource;
 import com.restaurant.reservation.domain.repository.ResourceRepository;
 import com.restaurant.reservation.infrastructure.persistence.mapper.ResourceMapper;
 import com.restaurant.reservation.infrastructure.persistence.repository.ResourceJpaRepository;
+import com.restaurant.reservation.application.event.ResourceSlotsChanged;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +20,14 @@ public class ResourceRepositoryAdapter implements ResourceRepository {
 
     private final ResourceJpaRepository jpa;
     private final ResourceMapper mapper;
+    private final ApplicationEventPublisher events;
 
     @Override
     @Transactional
     public Resource save(Resource resource) {
-        return mapper.toDomain(jpa.save(mapper.toEntity(resource)));
+        Resource saved = mapper.toDomain(jpa.save(mapper.toEntity(resource)));
+        events.publishEvent(new ResourceSlotsChanged(saved.getId()));
+        return saved;
     }
 
     @Override

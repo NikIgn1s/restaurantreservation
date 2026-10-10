@@ -81,7 +81,7 @@ class CreateBookingUseCaseTest {
     }
 
     private void givenSlotIsOffered() {
-        when(availableSlots.execute(any())).thenReturn(List.of(slot));
+        when(availableSlots.executeFresh(any())).thenReturn(List.of(slot));
     }
 
     private void givenSaveReturnsArgument() {
@@ -170,7 +170,7 @@ class CreateBookingUseCaseTest {
     @Test
     void rejectsSlotThatIsNotOffered() {
         givenResourceAndVenue();
-        when(availableSlots.execute(any())).thenReturn(List.of());
+        when(availableSlots.executeFresh(any())).thenReturn(List.of());
 
         assertThatThrownBy(() -> useCase.execute(command(null))).isInstanceOf(SlotNotAvailableException.class);
         verify(bookings, never()).save(any());

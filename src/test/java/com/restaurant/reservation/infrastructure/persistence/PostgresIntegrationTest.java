@@ -7,7 +7,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 import java.time.Instant;
@@ -19,8 +22,12 @@ public abstract class PostgresIntegrationTest {
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16");
 
+    @ServiceConnection(name = "redis")
+    static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+
     static {
         POSTGRES.start();
+        REDIS.start();
     }
 
     @Autowired
@@ -29,10 +36,17 @@ public abstract class PostgresIntegrationTest {
     @Autowired
     protected JwtService jwtService;
 
+    @Autowired
+    protected StringRedisTemplate redis;
+
     @BeforeEach
-    void cleanDatabase() {
+    void cleanState() {
         jdbc.execute("TRUNCATE TABLE idempotency_keys, booking_events, payments, bookings, "
                 + "schedule_exceptions, schedules, resources, venues, users CASCADE");
+        redis.execute((RedisCallback<Object>) connection -> {
+            connection.serverCommands().flushAll();
+            return null;
+        });
     }
 
     protected UUID insertUser() {

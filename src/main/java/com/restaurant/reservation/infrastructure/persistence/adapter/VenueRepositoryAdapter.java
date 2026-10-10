@@ -4,7 +4,9 @@ import com.restaurant.reservation.domain.model.Venue;
 import com.restaurant.reservation.domain.repository.VenueRepository;
 import com.restaurant.reservation.infrastructure.persistence.mapper.VenueMapper;
 import com.restaurant.reservation.infrastructure.persistence.repository.VenueJpaRepository;
+import com.restaurant.reservation.application.event.VenueSlotsChanged;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +20,14 @@ public class VenueRepositoryAdapter implements VenueRepository {
 
     private final VenueJpaRepository jpa;
     private final VenueMapper mapper;
+    private final ApplicationEventPublisher events;
 
     @Override
     @Transactional
     public Venue save(Venue venue) {
-        return mapper.toDomain(jpa.save(mapper.toEntity(venue)));
+        Venue saved = mapper.toDomain(jpa.save(mapper.toEntity(venue)));
+        events.publishEvent(new VenueSlotsChanged(saved.getId()));
+        return saved;
     }
 
     @Override

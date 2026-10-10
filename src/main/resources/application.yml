@@ -16,11 +16,20 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 500ms
+      connect-timeout: 500ms
 
 app:
   booking:
     pending-ttl: ${BOOKING_PENDING_TTL:PT30M}
     reminder-lead: ${BOOKING_REMINDER_LEAD:PT2H}
+  cache:
+    enabled: ${CACHE_ENABLED:true}
+    slots-ttl: ${SLOTS_CACHE_TTL:PT2M}
   scheduler:
     enabled: ${SCHEDULER_ENABLED:true}
     expiration-interval: PT1M

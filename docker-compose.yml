@@ -17,16 +17,31 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: reservation-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   backend:
     build: .
     container_name: reservation-backend
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/reservation
       DB_USERNAME: reservation
       DB_PASSWORD: reservation
+      REDIS_HOST: redis
       SPRING_FLYWAY_LOCATIONS: classpath:db/migration,classpath:db/dev
       JWT_SECRET: docker-compose-secret-key-docker-compose-secret-key
     ports:
