@@ -27,6 +27,10 @@ app:
   booking:
     pending-ttl: ${BOOKING_PENDING_TTL:PT30M}
     reminder-lead: ${BOOKING_REMINDER_LEAD:PT2H}
+  payment:
+    deposit-amount: ${DEPOSIT_AMOUNT:20.00}
+    currency: ${PAYMENT_CURRENCY:PLN}
+    fake-mode: ${PAYMENT_FAKE_MODE:approve}
   cache:
     enabled: ${CACHE_ENABLED:true}
     slots-ttl: ${SLOTS_CACHE_TTL:PT2M}

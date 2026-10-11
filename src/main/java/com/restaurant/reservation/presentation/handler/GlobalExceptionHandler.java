@@ -7,7 +7,9 @@ import com.restaurant.reservation.domain.exception.IdempotencyKeyConflictExcepti
 import com.restaurant.reservation.domain.exception.InvalidBookingException;
 import com.restaurant.reservation.domain.exception.InvalidCredentialsException;
 import com.restaurant.reservation.domain.exception.InvalidBookingStateException;
+import com.restaurant.reservation.domain.exception.InvalidPaymentStateException;
 import com.restaurant.reservation.domain.exception.InvalidTimeSlotException;
+import com.restaurant.reservation.domain.exception.PaymentInProgressException;
 import com.restaurant.reservation.domain.exception.NotFoundException;
 import com.restaurant.reservation.domain.exception.SlotNotAvailableException;
 import com.restaurant.reservation.presentation.resolver.AuthenticationRequiredException;
@@ -64,6 +66,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(SlotNotAvailableException.class)
     public ProblemDetail handleSlotNotAvailable(SlotNotAvailableException e) {
         return problem(HttpStatus.CONFLICT, "Slot not available", e.getMessage());
+    }
+
+    @ExceptionHandler(PaymentInProgressException.class)
+    public ProblemDetail handlePaymentInProgress(PaymentInProgressException e) {
+        return problem(HttpStatus.CONFLICT, "Payment in progress", e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidPaymentStateException.class)
+    public ProblemDetail handleInvalidPaymentState(InvalidPaymentStateException e) {
+        return problem(HttpStatus.CONFLICT, "Invalid payment state", e.getMessage());
     }
 
     @ExceptionHandler(ConcurrentBookingModificationException.class)

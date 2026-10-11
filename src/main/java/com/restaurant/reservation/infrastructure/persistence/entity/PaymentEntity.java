@@ -1,7 +1,10 @@
 package com.restaurant.reservation.infrastructure.persistence.entity;
 
+import com.restaurant.reservation.domain.model.PaymentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -34,8 +37,12 @@ public class PaymentEntity {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
-    private String status;
+    private PaymentStatus status;
+
+    @Column(name = "external_reference", length = 128)
+    private String externalReference;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

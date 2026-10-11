@@ -11,10 +11,13 @@ import com.restaurant.reservation.domain.exception.IdempotencyKeyConflictExcepti
 import com.restaurant.reservation.domain.exception.InvalidBookingException;
 import com.restaurant.reservation.domain.exception.InvalidCredentialsException;
 import com.restaurant.reservation.domain.exception.InvalidBookingStateException;
+import com.restaurant.reservation.domain.exception.InvalidPaymentStateException;
 import com.restaurant.reservation.domain.exception.InvalidTimeSlotException;
+import com.restaurant.reservation.domain.exception.PaymentInProgressException;
 import com.restaurant.reservation.domain.exception.NotFoundException;
 import com.restaurant.reservation.domain.exception.SlotNotAvailableException;
 import com.restaurant.reservation.domain.model.BookingStatus;
+import com.restaurant.reservation.domain.model.PaymentStatus;
 import com.restaurant.reservation.presentation.controller.VenueController;
 import com.restaurant.reservation.presentation.mapper.VenueApiMapper;
 import com.restaurant.reservation.presentation.resolver.CurrentActorArgumentResolver;
@@ -67,6 +70,8 @@ class GlobalExceptionHandlerTest {
                 Arguments.of(new NotFoundException("missing"), 404, "Not found"),
                 Arguments.of(new ForbiddenOperationException("denied"), 403, "Forbidden"),
                 Arguments.of(new SlotNotAvailableException("taken"), 409, "Slot not available"),
+                Arguments.of(new PaymentInProgressException(UUID.randomUUID()), 409, "Payment in progress"),
+                Arguments.of(new InvalidPaymentStateException(PaymentStatus.FAILED, PaymentStatus.PAID), 409, "Invalid payment state"),
                 Arguments.of(new ConcurrentBookingModificationException(UUID.randomUUID()), 409, "Concurrent modification"),
                 Arguments.of(new DataIntegrityViolationException("duplicate key"), 409, "Data conflict"),
                 Arguments.of(new CannotAcquireLockException("deadlock detected"), 409, "Data conflict"),
