@@ -29,6 +29,13 @@ services:
       retries: 10
     restart: unless-stopped
 
+  ml-service:
+    build: ./ml-service
+    container_name: reservation-ml
+    ports:
+      - "5002:5001"
+    restart: unless-stopped
+
   backend:
     build: .
     container_name: reservation-backend

@@ -16,7 +16,7 @@ def test_health_reports_service_is_up(client):
 def test_health_keeps_the_documented_field_order(client):
     body = client.get("/health").get_json()
 
-    assert list(body) == ["status", "service", "version", "uptimeSeconds", "time"]
+    assert list(body) == ["status", "service", "version", "model", "uptimeSeconds", "time"]
 
 
 def test_health_returns_json(client):
@@ -40,8 +40,24 @@ def test_uptime_is_not_negative_and_grows(client):
     assert second >= first
 
 
-def test_service_name_and_version_can_be_overridden():
-    app = create_app({"SERVICE_NAME": "custom", "SERVICE_VERSION": "9.9.9"})
+def test_health_describes_the_loaded_model(client, trained):
+    model = client.get("/health").get_json()["model"]
+
+    assert model["loaded"] is True
+    assert len(model["version"]) == 12
+    assert model["auc"] == trained.info["metrics"]["auc"]
+    assert model["trainedAt"] == trained.info["trainedAt"]
+
+
+def test_health_stays_up_when_the_model_is_missing(client_without_model):
+    response = client_without_model.get("/health")
+
+    assert response.status_code == 200
+    assert response.get_json()["model"] == {"loaded": False}
+
+
+def test_service_name_and_version_can_be_overridden(tmp_path):
+    app = create_app({"SERVICE_NAME": "custom", "SERVICE_VERSION": "9.9.9", "MODEL_PATH": str(tmp_path / "none.cbm")})
 
     body = app.test_client().get("/health").get_json()
 
@@ -49,9 +65,10 @@ def test_service_name_and_version_can_be_overridden():
     assert body["version"] == "9.9.9"
 
 
-def test_apps_do_not_share_startup_time():
-    first = create_app()
-    second = create_app()
+def test_apps_do_not_share_startup_time(tmp_path):
+    missing = {"MODEL_PATH": str(tmp_path / "none.cbm")}
+    first = create_app(missing)
+    second = create_app(missing)
 
     assert first.config["STARTED_AT"] <= second.config["STARTED_AT"]
 
@@ -72,8 +89,8 @@ def test_unknown_path_returns_json_not_found(client):
     assert body["status"] == 404
 
 
-def test_unexpected_error_is_hidden_from_the_client():
-    app = create_app({"TESTING": False, "PROPAGATE_EXCEPTIONS": False})
+def test_unexpected_error_is_hidden_from_the_client(tmp_path):
+    app = create_app({"TESTING": False, "PROPAGATE_EXCEPTIONS": False, "MODEL_PATH": str(tmp_path / "none.cbm")})
 
     @app.get("/boom")
     def boom():
