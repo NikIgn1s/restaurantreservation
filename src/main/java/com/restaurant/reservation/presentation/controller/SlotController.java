@@ -2,6 +2,7 @@ package com.restaurant.reservation.presentation.controller;
 
 import com.restaurant.reservation.application.dto.AvailableSlotsQuery;
 import com.restaurant.reservation.application.usecase.GetAvailableSlotsUseCase;
+import com.restaurant.reservation.application.usecase.GetOverbookableSlotsUseCase;
 import com.restaurant.reservation.presentation.mapper.BookingApiMapper;
 import com.restaurant.reservation.presentation.response.SlotResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,7 +28,21 @@ import java.util.UUID;
 public class SlotController {
 
     private final GetAvailableSlotsUseCase availableSlots;
+    private final GetOverbookableSlotsUseCase overbookableSlots;
     private final BookingApiMapper mapper;
+
+    @GetMapping("/overbookable")
+    @Operation(summary = "Taken slots that can still be booked as standby",
+            description = "A slot is overbookable when its only booking is unpaid and very likely to be a no-show. "
+                    + "The standby booking takes over the slot if that booking is cancelled or expires, "
+                    + "and is cancelled automatically if the first guest pays the deposit")
+    public List<SlotResponse> overbookable(@PathVariable UUID resourceId,
+                                           @Parameter(description = "yyyy-MM-dd", example = "2030-01-07")
+                                           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return overbookableSlots.execute(new AvailableSlotsQuery(resourceId, date)).stream()
+                .map(mapper::toResponse)
+                .toList();
+    }
 
     @GetMapping
     @SecurityRequirements

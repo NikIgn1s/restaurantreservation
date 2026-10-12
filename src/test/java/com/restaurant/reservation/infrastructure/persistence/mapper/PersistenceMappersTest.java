@@ -86,6 +86,31 @@ class PersistenceMappersTest {
     }
 
     @Test
+    void standbyFlagSurvivesRoundTrip() {
+        BookingMapper mapper = new BookingMapper();
+        Resource table = Resource.create(UUID.randomUUID(), "Table 1", 4);
+        TimeSlot slot = new TimeSlot(NOW.plus(Duration.ofHours(3)), NOW.plus(Duration.ofHours(5)));
+        Booking standby = Booking.create(table, UUID.randomUUID(), slot, 2, NOW);
+        standby.markOverbooked();
+
+        BookingEntity entity = mapper.toEntity(standby);
+        Booking restored = mapper.toDomain(entity);
+
+        assertThat(entity.isOverbooked()).isTrue();
+        assertThat(restored.isOverbooked()).isTrue();
+        assertThat(restored).usingRecursiveComparison().isEqualTo(standby);
+    }
+
+    @Test
+    void ordinaryBookingIsNotMarkedAsStandby() {
+        BookingMapper mapper = new BookingMapper();
+        Resource table = Resource.create(UUID.randomUUID(), "Table 1", 4);
+        TimeSlot slot = new TimeSlot(NOW.plus(Duration.ofHours(3)), NOW.plus(Duration.ofHours(5)));
+
+        assertThat(mapper.toEntity(Booking.create(table, UUID.randomUUID(), slot, 2, NOW)).isOverbooked()).isFalse();
+    }
+
+    @Test
     void bookingWithoutVersionIsReadAsVersionZero() {
         BookingMapper mapper = new BookingMapper();
         Resource table = Resource.create(UUID.randomUUID(), "Table 1", 4);

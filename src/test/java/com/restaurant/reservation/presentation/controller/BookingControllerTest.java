@@ -4,10 +4,12 @@ import com.restaurant.reservation.application.dto.BookingActionCommand;
 import com.restaurant.reservation.application.dto.BookingResult;
 import com.restaurant.reservation.application.dto.CreateBookingCommand;
 import com.restaurant.reservation.application.usecase.CancelBookingUseCase;
+import com.restaurant.reservation.application.usecase.CompleteBookingUseCase;
 import com.restaurant.reservation.application.usecase.ConfirmBookingUseCase;
 import com.restaurant.reservation.application.usecase.CreateBookingUseCase;
 import com.restaurant.reservation.application.usecase.GetBookingUseCase;
 import com.restaurant.reservation.application.usecase.ListMyBookingsUseCase;
+import com.restaurant.reservation.application.usecase.MarkNoShowUseCase;
 import com.restaurant.reservation.domain.exception.ForbiddenOperationException;
 import com.restaurant.reservation.domain.exception.IdempotencyKeyConflictException;
 import com.restaurant.reservation.domain.exception.InvalidBookingStateException;
@@ -68,6 +70,10 @@ class BookingControllerTest {
     private CancelBookingUseCase cancelBooking;
     @MockBean
     private ConfirmBookingUseCase confirmBooking;
+    @MockBean
+    private CompleteBookingUseCase completeBooking;
+    @MockBean
+    private MarkNoShowUseCase markNoShow;
 
     private Resource table;
     private Booking booking;
@@ -261,6 +267,43 @@ class BookingControllerTest {
         mockMvc.perform(asCustomer(post("/api/bookings/{id}/confirm", booking.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(BookingStatus.CONFIRMED.name()));
+    }
+
+    @Test
+    void recordsThatTheGuestCame() throws Exception {
+        booking.confirm();
+        booking.complete();
+        when(completeBooking.execute(any())).thenReturn(booking);
+
+        mockMvc.perform(asCustomer(post("/api/bookings/{id}/complete", booking.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(BookingStatus.COMPLETED.name()));
+    }
+
+    @Test
+    void recordsThatTheGuestDidNotCome() throws Exception {
+        booking.confirm();
+        booking.markNoShow();
+        when(markNoShow.execute(any())).thenReturn(booking);
+
+        mockMvc.perform(asCustomer(post("/api/bookings/{id}/no-show", booking.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(BookingStatus.NO_SHOW.name()));
+    }
+
+    @Test
+    void customerCannotRecordTheOutcome() throws Exception {
+        when(completeBooking.execute(any())).thenThrow(new ForbiddenOperationException("no"));
+        when(markNoShow.execute(any())).thenThrow(new ForbiddenOperationException("no"));
+
+        mockMvc.perform(asCustomer(post("/api/bookings/{id}/complete", booking.getId()))).andExpect(status().isForbidden());
+        mockMvc.perform(asCustomer(post("/api/bookings/{id}/no-show", booking.getId()))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void outcomeRequiresAuthentication() throws Exception {
+        mockMvc.perform(post("/api/bookings/{id}/complete", booking.getId())).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/bookings/{id}/no-show", booking.getId())).andExpect(status().isUnauthorized());
     }
 
     @Test

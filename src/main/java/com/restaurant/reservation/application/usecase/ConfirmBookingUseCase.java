@@ -15,6 +15,7 @@ public class ConfirmBookingUseCase {
 
     private final BookingRepository bookings;
     private final VenueAccessPolicy accessPolicy;
+    private final OverbookingCoordinator overbooking;
 
     @Transactional
     public Booking execute(BookingActionCommand command) {
@@ -24,7 +25,9 @@ public class ConfirmBookingUseCase {
             throw new ForbiddenOperationException("Booking cannot be confirmed by this user");
         }
         booking.confirm();
-        return bookings.save(booking);
+        Booking saved = bookings.save(booking);
+        overbooking.onSecured(saved);
+        return saved;
     }
 
     private boolean canConfirm(Booking booking, BookingActionCommand command) {

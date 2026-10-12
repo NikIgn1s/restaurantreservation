@@ -13,13 +13,13 @@ public class BookingMapper {
         return new Booking(entity.getId(), entity.getResourceId(), entity.getUserId(),
                 new TimeSlot(entity.getStartAt(), entity.getEndAt()), entity.getGuests(), entity.getStatus(),
                 entity.isDepositRequired(), entity.getNoShowProbability(), entity.getCreatedAt(),
-                entity.getReminderSentAt(), version);
+                entity.getReminderSentAt(), entity.isOverbooked(), version);
     }
 
     public BookingEntity toEntity(Booking booking) {
         return new BookingEntity(booking.getId(), booking.getResourceId(), booking.getUserId(),
                 booking.getSlot().start(), booking.getSlot().end(), booking.getGuests(), booking.getStatus(),
                 booking.isDepositRequired(), booking.getNoShowProbability(), booking.getCreatedAt(),
-                booking.getReminderSentAt(), booking.getVersion());
+                booking.getReminderSentAt(), booking.isOverbooked(), booking.getVersion());
     }
 }

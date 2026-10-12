@@ -15,6 +15,7 @@ public class CancelBookingUseCase {
 
     private final BookingRepository bookings;
     private final VenueAccessPolicy accessPolicy;
+    private final OverbookingCoordinator overbooking;
 
     @Transactional
     public Booking execute(BookingActionCommand command) {
@@ -25,6 +26,8 @@ public class CancelBookingUseCase {
             throw new ForbiddenOperationException("Booking belongs to another user");
         }
         booking.cancel();
-        return bookings.save(booking);
+        Booking saved = bookings.save(booking);
+        overbooking.onSlotFreed(saved);
+        return saved;
     }
 }

@@ -27,16 +27,19 @@ public class DepositPaymentSteps {
     private final BookingRepository bookings;
     private final PaymentRepository payments;
     private final UserRepository users;
+    private final OverbookingCoordinator overbooking;
     private final Clock clock;
     private final BigDecimal depositAmount;
     private final String currency;
 
-    public DepositPaymentSteps(BookingRepository bookings, PaymentRepository payments, UserRepository users, Clock clock,
+    public DepositPaymentSteps(BookingRepository bookings, PaymentRepository payments, UserRepository users,
+                               OverbookingCoordinator overbooking, Clock clock,
                                @Value("${app.payment.deposit-amount:20.00}") BigDecimal depositAmount,
                                @Value("${app.payment.currency:PLN}") String currency) {
         this.bookings = bookings;
         this.payments = payments;
         this.users = users;
+        this.overbooking = overbooking;
         this.clock = clock;
         this.depositAmount = depositAmount;
         this.currency = currency;
@@ -80,7 +83,9 @@ public class DepositPaymentSteps {
         Booking booking = bookings.findById(bookingId)
                 .orElseThrow(() -> new NotFoundException("Booking " + bookingId + " not found"));
         booking.confirm();
-        return bookings.save(booking);
+        Booking saved = bookings.save(booking);
+        overbooking.onSecured(saved);
+        return saved;
     }
 
     @Transactional

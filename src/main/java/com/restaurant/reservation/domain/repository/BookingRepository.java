@@ -2,6 +2,7 @@ package com.restaurant.reservation.domain.repository;
 
 import com.restaurant.reservation.domain.model.Booking;
 import com.restaurant.reservation.domain.model.TimeSlot;
+import com.restaurant.reservation.domain.model.UserBookingHistory;
 
 import java.time.Instant;
 import java.util.List;
@@ -14,6 +15,8 @@ public interface BookingRepository {
 
     Optional<Booking> findById(UUID id);
 
+    Optional<Booking> lockById(UUID id);
+
     List<Booking> findByUserId(UUID userId);
 
     List<Booking> findActiveByResourceAndSlot(UUID resourceId, TimeSlot slot);
@@ -23,4 +26,6 @@ public interface BookingRepository {
     List<Booking> findConfirmedStartingBetween(Instant from, Instant to);
 
     List<Booking> findConfirmedAwaitingReminder(Instant from, Instant to);
+
+    UserBookingHistory historyOf(UUID userId);
 }

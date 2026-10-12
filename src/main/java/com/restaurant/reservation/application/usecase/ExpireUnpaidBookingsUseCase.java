@@ -16,12 +16,14 @@ import java.time.Instant;
 public class ExpireUnpaidBookingsUseCase {
 
     private final BookingRepository bookings;
+    private final BookingExpirer expirer;
     private final Clock clock;
     private final Duration pendingTtl;
 
-    public ExpireUnpaidBookingsUseCase(BookingRepository bookings, Clock clock,
+    public ExpireUnpaidBookingsUseCase(BookingRepository bookings, BookingExpirer expirer, Clock clock,
                                        @Value("${app.booking.pending-ttl:PT30M}") Duration pendingTtl) {
         this.bookings = bookings;
+        this.expirer = expirer;
         this.clock = clock;
         this.pendingTtl = pendingTtl;
     }
@@ -39,8 +41,7 @@ public class ExpireUnpaidBookingsUseCase {
 
     private boolean expire(Booking booking) {
         try {
-            booking.expire();
-            bookings.save(booking);
+            expirer.expire(booking);
             return true;
         } catch (DomainException e) {
             log.info("Booking {} was not expired: {}", booking.getId(), e.getMessage());

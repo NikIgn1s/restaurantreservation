@@ -4,7 +4,9 @@ import com.restaurant.reservation.application.dto.AvailableSlotsQuery;
 import com.restaurant.reservation.application.dto.BookingResult;
 import com.restaurant.reservation.application.dto.CreateBookingCommand;
 import com.restaurant.reservation.application.port.IdempotencyRecord;
+import com.restaurant.reservation.application.policy.RiskPolicy;
 import com.restaurant.reservation.application.port.IdempotencyStore;
+import com.restaurant.reservation.application.port.NoShowPrediction;
 import com.restaurant.reservation.application.support.RequestFingerprint;
 import com.restaurant.reservation.domain.exception.IdempotencyKeyConflictException;
 import com.restaurant.reservation.domain.exception.InvalidBookingException;
@@ -16,12 +18,15 @@ import com.restaurant.reservation.domain.model.Venue;
 import com.restaurant.reservation.domain.repository.BookingRepository;
 import com.restaurant.reservation.domain.repository.ResourceRepository;
 import com.restaurant.reservation.domain.repository.VenueRepository;
+import com.restaurant.reservation.domain.service.OverbookingPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +39,8 @@ public class CreateBookingUseCase {
     private final BookingRepository bookings;
     private final IdempotencyStore idempotencyStore;
     private final GetAvailableSlotsUseCase availableSlots;
+    private final NoShowRiskAssessor riskAssessor;
+    private final RiskPolicy riskPolicy;
     private final Clock clock;
 
     @Transactional
@@ -60,7 +67,9 @@ public class CreateBookingUseCase {
         }
 
         Booking booking = Booking.create(resource, command.actor().id(), command.slot(), command.guests(), clock.instant());
-        ensureSlotIsOffered(command, venue);
+        Optional<UUID> primaryToWaitFor = decideAccess(command, venue);
+        assessRisk(booking, venue);
+        primaryToWaitFor.ifPresent(primaryId -> queueBehind(booking, primaryId));
 
         Booking saved = bookings.save(booking);
         if (command.hasIdempotencyKey()) {
@@ -83,12 +92,37 @@ public class CreateBookingUseCase {
         return new BookingResult(booking, true);
     }
 
-    private void ensureSlotIsOffered(CreateBookingCommand command, Venue venue) {
+    private void assessRisk(Booking booking, Venue venue) {
+        NoShowPrediction prediction = riskAssessor.assess(booking.getUserId(), venue, booking.getSlot(),
+                booking.getGuests(), clock.instant());
+        if (prediction.isAvailable()) {
+            booking.assessNoShowRisk(prediction.probability(), riskPolicy.depositThreshold());
+        }
+    }
+
+    private Optional<UUID> decideAccess(CreateBookingCommand command, Venue venue) {
         var date = command.slot().start().atZone(venue.getTimezone()).toLocalDate();
-        boolean offered = availableSlots.executeFresh(new AvailableSlotsQuery(command.resourceId(), date))
-                .contains(command.slot());
-        if (!offered) {
+        var query = new AvailableSlotsQuery(command.resourceId(), date);
+        if (availableSlots.executeFresh(query).contains(command.slot())) {
+            return Optional.empty();
+        }
+        if (riskPolicy.overbookingEnabled() && availableSlots.scheduledSlots(query).contains(command.slot())) {
+            List<Booking> active = bookings.findActiveByResourceAndSlot(command.resourceId(), command.slot());
+            if (OverbookingPolicy.allows(active, riskPolicy.overbookingMinProbability())) {
+                return Optional.of(active.get(0).getId());
+            }
+        }
+        throw new SlotNotAvailableException("Requested slot is not available");
+    }
+
+    private void queueBehind(Booking booking, UUID primaryId) {
+        bookings.lockById(primaryId).orElseThrow(() -> new SlotNotAvailableException("Requested slot is not available"));
+        List<Booking> active = bookings.findActiveByResourceAndSlot(booking.getResourceId(), booking.getSlot());
+        boolean stillAllowed = OverbookingPolicy.allows(active, riskPolicy.overbookingMinProbability())
+                && active.get(0).getId().equals(primaryId);
+        if (!stillAllowed) {
             throw new SlotNotAvailableException("Requested slot is not available");
         }
+        booking.markOverbooked();
     }
 }

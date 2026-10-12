@@ -2,6 +2,7 @@ package com.restaurant.reservation.presentation.controller;
 
 import com.restaurant.reservation.application.dto.AvailableSlotsQuery;
 import com.restaurant.reservation.application.usecase.GetAvailableSlotsUseCase;
+import com.restaurant.reservation.application.usecase.GetOverbookableSlotsUseCase;
 import com.restaurant.reservation.domain.exception.NotFoundException;
 import com.restaurant.reservation.domain.model.TimeSlot;
 import com.restaurant.reservation.presentation.mapper.BookingApiMapper;
@@ -37,6 +38,8 @@ class SlotControllerTest {
     private MockMvc mockMvc;
     @MockBean
     private GetAvailableSlotsUseCase availableSlots;
+    @MockBean
+    private GetOverbookableSlotsUseCase overbookableSlots;
 
     @Test
     void returnsFreeSlotsWithoutAuthentication() throws Exception {
@@ -58,6 +61,31 @@ class SlotControllerTest {
         mockMvc.perform(get("/api/resources/{id}/slots", RESOURCE_ID).param("date", "2030-01-07"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void listsOverbookableSlots() throws Exception {
+        when(overbookableSlots.execute(new AvailableSlotsQuery(RESOURCE_ID, DATE))).thenReturn(List.of(
+                new TimeSlot(Instant.parse("2030-01-07T11:00:00Z"), Instant.parse("2030-01-07T12:00:00Z"))));
+
+        mockMvc.perform(get("/api/resources/{id}/slots/overbookable", RESOURCE_ID).param("date", "2030-01-07"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].startAt").value("2030-01-07T11:00:00Z"));
+    }
+
+    @Test
+    void overbookableSlotsNeedADate() throws Exception {
+        mockMvc.perform(get("/api/resources/{id}/slots/overbookable", RESOURCE_ID)).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void unknownResourceHasNoOverbookableSlots() throws Exception {
+        when(overbookableSlots.execute(new AvailableSlotsQuery(RESOURCE_ID, DATE)))
+                .thenThrow(new NotFoundException("Resource " + RESOURCE_ID + " not found"));
+
+        mockMvc.perform(get("/api/resources/{id}/slots/overbookable", RESOURCE_ID).param("date", "2030-01-07"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

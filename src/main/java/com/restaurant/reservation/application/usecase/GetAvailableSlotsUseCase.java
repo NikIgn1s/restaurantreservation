@@ -50,12 +50,28 @@ public class GetAvailableSlotsUseCase {
         return upcoming(loadFreeSlots(query));
     }
 
+    @Transactional(readOnly = true)
+    public List<TimeSlot> scheduledSlots(AvailableSlotsQuery query) {
+        return upcoming(loadCandidates(query));
+    }
+
     private List<TimeSlot> upcoming(List<TimeSlot> slots) {
         Instant now = clock.instant();
         return slots.stream().filter(slot -> !slot.startsBefore(now)).toList();
     }
 
     private List<TimeSlot> loadFreeSlots(AvailableSlotsQuery query) {
+        List<TimeSlot> candidates = loadCandidates(query);
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+
+        TimeSlot window = new TimeSlot(candidates.get(0).start(), candidates.get(candidates.size() - 1).end());
+        List<Booking> active = bookings.findActiveByResourceAndSlot(query.resourceId(), window);
+        return SlotAvailabilityCalculator.freeSlots(candidates, active, Instant.MIN);
+    }
+
+    private List<TimeSlot> loadCandidates(AvailableSlotsQuery query) {
         Resource resource = resources.findById(query.resourceId())
                 .orElseThrow(() -> new NotFoundException("Resource " + query.resourceId() + " not found"));
         Venue venue = venues.findById(resource.getVenueId())
@@ -73,15 +89,8 @@ public class GetAvailableSlotsUseCase {
 
         ZoneId zone = venue.getTimezone();
         Schedule schedule = weekly.get();
-        List<TimeSlot> candidates = schedules.findException(resource.getId(), query.date())
+        return schedules.findException(resource.getId(), query.date())
                 .map(exception -> schedule.slotsFor(exception, zone))
                 .orElseGet(() -> schedule.slotsFor(query.date(), zone));
-        if (candidates.isEmpty()) {
-            return List.of();
-        }
-
-        TimeSlot window = new TimeSlot(candidates.get(0).start(), candidates.get(candidates.size() - 1).end());
-        List<Booking> active = bookings.findActiveByResourceAndSlot(resource.getId(), window);
-        return SlotAvailabilityCalculator.freeSlots(candidates, active, Instant.MIN);
     }
 }

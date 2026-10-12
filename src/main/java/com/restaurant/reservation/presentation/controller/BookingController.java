@@ -4,10 +4,12 @@ import com.restaurant.reservation.application.dto.Actor;
 import com.restaurant.reservation.application.dto.BookingActionCommand;
 import com.restaurant.reservation.application.dto.BookingResult;
 import com.restaurant.reservation.application.usecase.CancelBookingUseCase;
+import com.restaurant.reservation.application.usecase.CompleteBookingUseCase;
 import com.restaurant.reservation.application.usecase.ConfirmBookingUseCase;
 import com.restaurant.reservation.application.usecase.CreateBookingUseCase;
 import com.restaurant.reservation.application.usecase.GetBookingUseCase;
 import com.restaurant.reservation.application.usecase.ListMyBookingsUseCase;
+import com.restaurant.reservation.application.usecase.MarkNoShowUseCase;
 import com.restaurant.reservation.presentation.mapper.BookingApiMapper;
 import com.restaurant.reservation.presentation.request.CreateBookingRequest;
 import com.restaurant.reservation.presentation.resolver.CurrentActor;
@@ -45,6 +47,8 @@ public class BookingController {
     private final ListMyBookingsUseCase listMyBookings;
     private final CancelBookingUseCase cancelBooking;
     private final ConfirmBookingUseCase confirmBooking;
+    private final CompleteBookingUseCase completeBooking;
+    private final MarkNoShowUseCase markNoShow;
     private final BookingApiMapper mapper;
 
     @PostMapping
@@ -85,6 +89,20 @@ public class BookingController {
             description = "The venue owner and ADMIN can always confirm. The customer can confirm only when no deposit is required")
     public BookingResponse confirm(@CurrentActor Actor actor, @PathVariable UUID bookingId) {
         return mapper.toResponse(confirmBooking.execute(new BookingActionCommand(actor, bookingId)));
+    }
+
+    @PostMapping("/{bookingId}/complete")
+    @Operation(summary = "Record that the guest came",
+            description = "Allowed for the venue owner and ADMIN once the visit has started. Feeds the guest history used for risk prediction")
+    public BookingResponse complete(@CurrentActor Actor actor, @PathVariable UUID bookingId) {
+        return mapper.toResponse(completeBooking.execute(new BookingActionCommand(actor, bookingId)));
+    }
+
+    @PostMapping("/{bookingId}/no-show")
+    @Operation(summary = "Record that the guest did not come",
+            description = "Allowed for the venue owner and ADMIN once the visit has started. Feeds the guest history used for risk prediction")
+    public BookingResponse noShow(@CurrentActor Actor actor, @PathVariable UUID bookingId) {
+        return mapper.toResponse(markNoShow.execute(new BookingActionCommand(actor, bookingId)));
     }
 
     @PostMapping("/{bookingId}/cancel")

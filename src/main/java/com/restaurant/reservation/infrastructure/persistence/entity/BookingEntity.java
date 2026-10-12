@@ -59,6 +59,9 @@ public class BookingEntity {
     @Column(name = "reminder_sent_at")
     private Instant reminderSentAt;
 
+    @Column(nullable = false)
+    private boolean overbooked;
+
     @Version
     @Column(nullable = false)
     private Long version;

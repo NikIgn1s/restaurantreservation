@@ -33,13 +33,15 @@ class ExpireUnpaidBookingsUseCaseTest {
 
     @Mock
     private BookingRepository bookings;
+    @Mock
+    private OverbookingCoordinator overbooking;
 
     private ExpireUnpaidBookingsUseCase useCase;
     private Resource table;
 
     @BeforeEach
     void setUp() {
-        useCase = new ExpireUnpaidBookingsUseCase(bookings, Clock.fixed(NOW, ZoneOffset.UTC), TTL);
+        useCase = new ExpireUnpaidBookingsUseCase(bookings, new BookingExpirer(bookings, overbooking), Clock.fixed(NOW, ZoneOffset.UTC), TTL);
         table = Resource.create(UUID.randomUUID(), "Table 1", 4);
     }
 

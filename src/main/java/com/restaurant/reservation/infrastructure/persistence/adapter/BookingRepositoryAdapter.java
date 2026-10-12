@@ -5,6 +5,7 @@ import com.restaurant.reservation.domain.exception.SlotNotAvailableException;
 import com.restaurant.reservation.domain.model.Booking;
 import com.restaurant.reservation.domain.model.BookingStatus;
 import com.restaurant.reservation.domain.model.TimeSlot;
+import com.restaurant.reservation.domain.model.UserBookingHistory;
 import com.restaurant.reservation.domain.repository.BookingRepository;
 import com.restaurant.reservation.infrastructure.persistence.entity.BookingEntity;
 import com.restaurant.reservation.infrastructure.persistence.mapper.BookingMapper;
@@ -32,7 +33,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class BookingRepositoryAdapter implements BookingRepository {
 
-    private static final String OVERLAP_CONSTRAINT = "ex_bookings_no_overlap";
+    private static final List<String> OVERLAP_CONSTRAINTS = List.of("ex_bookings_no_overlap", "ex_bookings_single_overbooked");
     private static final String DEADLOCK_DETECTED = "40P01";
     private static final String SERIALIZATION_FAILURE = "40001";
 
@@ -76,7 +77,7 @@ public class BookingRepositoryAdapter implements BookingRepository {
 
     private static boolean violatesOverlapConstraint(Throwable error) {
         String message = NestedExceptionUtils.getMostSpecificCause(error).getMessage();
-        return message != null && message.contains(OVERLAP_CONSTRAINT);
+        return message != null && OVERLAP_CONSTRAINTS.stream().anyMatch(message::contains);
     }
 
     private static boolean isLockConflict(Throwable error) {
@@ -116,6 +117,12 @@ public class BookingRepositoryAdapter implements BookingRepository {
     }
 
     @Override
+    @Transactional
+    public Optional<Booking> lockById(UUID id) {
+        return jpa.findForUpdate(id).map(mapper::toDomain);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<Booking> findByUserId(UUID userId) {
         return jpa.findByUserIdOrderByStartAtDesc(userId).stream().map(mapper::toDomain).toList();
@@ -138,6 +145,14 @@ public class BookingRepositoryAdapter implements BookingRepository {
         return jpa.findByStatusAndCreatedAtBefore(BookingStatus.PENDING, threshold).stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserBookingHistory historyOf(UUID userId) {
+        int finished = (int) jpa.countByUserIdAndStatusIn(userId, List.of(BookingStatus.COMPLETED, BookingStatus.NO_SHOW));
+        int noShows = (int) jpa.countByUserIdAndStatus(userId, BookingStatus.NO_SHOW);
+        return new UserBookingHistory(finished, noShows);
     }
 
     @Override

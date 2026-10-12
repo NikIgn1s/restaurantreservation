@@ -20,7 +20,8 @@ public class BookingApiMapper {
     public BookingResponse toResponse(Booking booking) {
         return new BookingResponse(booking.getId(), booking.getResourceId(), booking.getUserId(),
                 booking.getSlot().start(), booking.getSlot().end(), booking.getGuests(), booking.getStatus(),
-                booking.isDepositRequired(), booking.getNoShowProbability(), booking.getCreatedAt(), booking.getVersion());
+                booking.isDepositRequired(), booking.getNoShowProbability(), booking.isOverbooked(),
+                booking.getCreatedAt(), booking.getVersion());
     }
 
     public SlotResponse toResponse(TimeSlot slot) {

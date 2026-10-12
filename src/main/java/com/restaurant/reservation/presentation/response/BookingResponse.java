@@ -7,5 +7,5 @@ import java.util.UUID;
 
 public record BookingResponse(UUID id, UUID resourceId, UUID userId, Instant startAt, Instant endAt, int guests,
                               BookingStatus status, boolean depositRequired, Double noShowProbability,
-                              Instant createdAt, long version) {
+                              boolean overbooked, Instant createdAt, long version) {
 }

@@ -27,6 +27,15 @@ app:
   booking:
     pending-ttl: ${BOOKING_PENDING_TTL:PT30M}
     reminder-lead: ${BOOKING_REMINDER_LEAD:PT2H}
+  risk:
+    deposit-threshold: ${DEPOSIT_THRESHOLD:0.4}
+    overbooking-enabled: ${OVERBOOKING_ENABLED:true}
+    overbooking-min-probability: ${OVERBOOKING_MIN_PROBABILITY:0.5}
+  ml:
+    enabled: ${ML_ENABLED:true}
+    base-url: ${ML_BASE_URL:http://localhost:5002}
+    timeout: ${ML_TIMEOUT:PT1S}
+    cooldown: ${ML_COOLDOWN:PT30S}
   payment:
     deposit-amount: ${DEPOSIT_AMOUNT:20.00}
     currency: ${PAYMENT_CURRENCY:PLN}

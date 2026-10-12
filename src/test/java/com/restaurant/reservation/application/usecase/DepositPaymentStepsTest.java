@@ -51,6 +51,8 @@ class DepositPaymentStepsTest {
     private PaymentRepository payments;
     @Mock
     private UserRepository users;
+    @Mock
+    private OverbookingCoordinator overbooking;
 
     private DepositPaymentSteps steps;
     private User guest;
@@ -59,7 +61,7 @@ class DepositPaymentStepsTest {
 
     @BeforeEach
     void setUp() {
-        steps = new DepositPaymentSteps(bookings, payments, users, Clock.fixed(NOW, ZoneOffset.UTC),
+        steps = new DepositPaymentSteps(bookings, payments, users, overbooking, Clock.fixed(NOW, ZoneOffset.UTC),
                 new BigDecimal("20.00"), "PLN");
         guest = User.register("anna@example.com", "hash", "Anna", UserRole.CUSTOMER, NOW);
         actor = new Actor(guest.getId(), UserRole.CUSTOMER);
@@ -206,6 +208,16 @@ class DepositPaymentStepsTest {
         when(bookings.save(booking)).thenReturn(booking);
 
         assertThat(steps.confirmBooking(booking.getId()).getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+    }
+
+    @Test
+    void paidBookingRemovesTheStandbyBehindIt() {
+        givenBooking();
+        when(bookings.save(booking)).thenReturn(booking);
+
+        steps.confirmBooking(booking.getId());
+
+        verify(overbooking).onSecured(booking);
     }
 
     @Test

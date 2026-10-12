@@ -18,11 +18,12 @@ public class Booking {
     private Double noShowProbability;
     private final Instant createdAt;
     private Instant reminderSentAt;
+    private boolean overbooked;
     private final long version;
 
     public Booking(UUID id, UUID resourceId, UUID userId, TimeSlot slot, int guests, BookingStatus status,
                    boolean depositRequired, Double noShowProbability, Instant createdAt, Instant reminderSentAt,
-                   long version) {
+                   boolean overbooked, long version) {
         this.id = id;
         this.resourceId = resourceId;
         this.userId = userId;
@@ -33,6 +34,7 @@ public class Booking {
         this.noShowProbability = noShowProbability;
         this.createdAt = createdAt;
         this.reminderSentAt = reminderSentAt;
+        this.overbooked = overbooked;
         this.version = version;
     }
 
@@ -47,7 +49,7 @@ public class Booking {
             throw new InvalidBookingException("Booking cannot start in the past");
         }
         return new Booking(UUID.randomUUID(), resource.getId(), userId, slot, guests,
-                BookingStatus.PENDING, false, null, now, null, 0L);
+                BookingStatus.PENDING, false, null, now, null, false, 0L);
     }
 
     public void assessNoShowRisk(double probability, double depositThreshold) {
@@ -73,6 +75,25 @@ public class Booking {
 
     public void markNoShow() {
         transitionTo(BookingStatus.NO_SHOW);
+    }
+
+    public boolean isOverbookable(double minProbability) {
+        return !overbooked && status == BookingStatus.PENDING && depositRequired
+                && noShowProbability != null && noShowProbability >= minProbability;
+    }
+
+    public void markOverbooked() {
+        if (status != BookingStatus.PENDING) {
+            throw new InvalidBookingException("Only a pending booking can be placed behind another one");
+        }
+        this.overbooked = true;
+    }
+
+    public void promote() {
+        if (!overbooked || !status.occupiesSlot()) {
+            throw new InvalidBookingException("Only an active standby booking can be promoted");
+        }
+        this.overbooked = false;
     }
 
     public boolean needsReminder() {
@@ -135,6 +156,10 @@ public class Booking {
 
     public Instant getReminderSentAt() {
         return reminderSentAt;
+    }
+
+    public boolean isOverbooked() {
+        return overbooked;
     }
 
     public long getVersion() {

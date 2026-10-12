@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +38,8 @@ class ConfirmBookingUseCaseTest {
     private BookingRepository bookings;
     @Mock
     private VenueAccessPolicy accessPolicy;
+    @Mock
+    private OverbookingCoordinator overbooking;
 
     private ConfirmBookingUseCase useCase;
     private Actor customer;
@@ -45,7 +48,7 @@ class ConfirmBookingUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new ConfirmBookingUseCase(bookings, accessPolicy);
+        useCase = new ConfirmBookingUseCase(bookings, accessPolicy, overbooking);
         customer = new Actor(UUID.randomUUID(), UserRole.CUSTOMER);
         manager = new Actor(UUID.randomUUID(), UserRole.VENUE_OWNER);
         Resource table = Resource.create(UUID.randomUUID(), "Table 1", 4);
@@ -74,6 +77,29 @@ class ConfirmBookingUseCaseTest {
         Booking result = useCase.execute(new BookingActionCommand(manager, booking.getId()));
 
         assertThat(result.getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+    }
+
+    @Test
+    void confirmationRemovesTheStandbyBehindTheBooking() {
+        givenBookingExists();
+        givenManagerRights(manager, true);
+        givenSaveReturnsBooking();
+
+        useCase.execute(new BookingActionCommand(manager, booking.getId()));
+
+        verify(overbooking).onSecured(booking);
+    }
+
+    @Test
+    void forbiddenConfirmationLeavesTheStandbyAlone() {
+        givenBookingExists();
+        booking.assessNoShowRisk(0.9, 0.4);
+        givenManagerRights(customer, false);
+
+        assertThatThrownBy(() -> useCase.execute(new BookingActionCommand(customer, booking.getId())))
+                .isInstanceOf(ForbiddenOperationException.class);
+
+        verifyNoInteractions(overbooking);
     }
 
     @Test

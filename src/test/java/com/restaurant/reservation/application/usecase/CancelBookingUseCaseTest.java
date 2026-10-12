@@ -38,6 +38,8 @@ class CancelBookingUseCaseTest {
     private BookingRepository bookings;
     @Mock
     private VenueAccessPolicy accessPolicy;
+    @Mock
+    private OverbookingCoordinator overbooking;
 
     private CancelBookingUseCase useCase;
     private Actor customer;
@@ -45,7 +47,7 @@ class CancelBookingUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new CancelBookingUseCase(bookings, accessPolicy);
+        useCase = new CancelBookingUseCase(bookings, accessPolicy, overbooking);
         customer = new Actor(UUID.randomUUID(), UserRole.CUSTOMER);
         Resource table = Resource.create(UUID.randomUUID(), "Table 1", 4);
         TimeSlot slot = new TimeSlot(Instant.parse("2030-01-01T12:00:00Z"), Instant.parse("2030-01-01T13:00:00Z"));
@@ -65,6 +67,28 @@ class CancelBookingUseCaseTest {
 
         assertThat(result.getStatus()).isEqualTo(BookingStatus.CANCELLED);
         verifyNoInteractions(accessPolicy);
+    }
+
+    @Test
+    void freedSlotIsOfferedToTheStandby() {
+        givenBookingExists();
+        when(bookings.save(booking)).thenReturn(booking);
+
+        useCase.execute(new BookingActionCommand(customer, booking.getId()));
+
+        verify(overbooking).onSlotFreed(booking);
+    }
+
+    @Test
+    void rejectedCancellationLeavesTheStandbyAlone() {
+        givenBookingExists();
+        Actor stranger = new Actor(UUID.randomUUID(), UserRole.CUSTOMER);
+        when(accessPolicy.canManageResource(booking.getResourceId(), stranger)).thenReturn(false);
+
+        assertThatThrownBy(() -> useCase.execute(new BookingActionCommand(stranger, booking.getId())))
+                .isInstanceOf(ForbiddenOperationException.class);
+
+        verifyNoInteractions(overbooking);
     }
 
     @Test

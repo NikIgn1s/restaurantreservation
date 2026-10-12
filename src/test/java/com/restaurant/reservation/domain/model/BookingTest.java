@@ -243,6 +243,88 @@ class BookingTest {
     }
 
     @Test
+    void newBookingIsNotOverbooked() {
+        assertThat(newBooking().isOverbooked()).isFalse();
+    }
+
+    @Test
+    void unpaidHighRiskBookingIsOverbookable() {
+        Booking booking = newBooking();
+        booking.assessNoShowRisk(0.8, DEPOSIT_THRESHOLD);
+
+        assertThat(booking.isOverbookable(0.5)).isTrue();
+        assertThat(booking.isOverbookable(0.8)).isTrue();
+        assertThat(booking.isOverbookable(0.81)).isFalse();
+    }
+
+    @Test
+    void bookingWithoutPredictionIsNeverOverbookable() {
+        assertThat(newBooking().isOverbookable(0.0)).isFalse();
+    }
+
+    @Test
+    void bookingThatDoesNotRequireDepositIsNotOverbookable() {
+        Booking booking = newBooking();
+        booking.assessNoShowRisk(0.45, 0.5);
+
+        assertThat(booking.isDepositRequired()).isFalse();
+        assertThat(booking.isOverbookable(0.4)).isFalse();
+    }
+
+    @Test
+    void confirmedBookingIsNotOverbookable() {
+        Booking booking = newBooking();
+        booking.assessNoShowRisk(0.9, DEPOSIT_THRESHOLD);
+        booking.confirm();
+
+        assertThat(booking.isOverbookable(0.5)).isFalse();
+    }
+
+    @Test
+    void standbyBookingCannotBeOverbookedAgain() {
+        Booking booking = newBooking();
+        booking.assessNoShowRisk(0.9, DEPOSIT_THRESHOLD);
+        booking.markOverbooked();
+
+        assertThat(booking.isOverbooked()).isTrue();
+        assertThat(booking.isOverbookable(0.5)).isFalse();
+    }
+
+    @Test
+    void onlyPendingBookingCanBePlacedBehindAnother() {
+        Booking booking = newBooking();
+        booking.confirm();
+
+        assertThatThrownBy(booking::markOverbooked).isInstanceOf(InvalidBookingException.class);
+        assertThat(booking.isOverbooked()).isFalse();
+    }
+
+    @Test
+    void standbyBookingCanBePromoted() {
+        Booking booking = newBooking();
+        booking.markOverbooked();
+
+        booking.promote();
+
+        assertThat(booking.isOverbooked()).isFalse();
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.PENDING);
+    }
+
+    @Test
+    void regularBookingCannotBePromoted() {
+        assertThatThrownBy(() -> newBooking().promote()).isInstanceOf(InvalidBookingException.class);
+    }
+
+    @Test
+    void cancelledStandbyCannotBePromoted() {
+        Booking booking = newBooking();
+        booking.markOverbooked();
+        booking.cancel();
+
+        assertThatThrownBy(booking::promote).isInstanceOf(InvalidBookingException.class);
+    }
+
+    @Test
     void ownershipIsCheckedByUserId() {
         Booking booking = newBooking();
 

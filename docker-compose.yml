@@ -44,7 +44,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ml-service:
+        condition: service_started
     environment:
+      ML_BASE_URL: http://ml-service:5001
       DB_URL: jdbc:postgresql://postgres:5432/reservation
       DB_USERNAME: reservation
       DB_PASSWORD: reservation
