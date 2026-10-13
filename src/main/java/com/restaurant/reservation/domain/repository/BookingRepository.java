@@ -28,4 +28,6 @@ public interface BookingRepository {
     List<Booking> findConfirmedAwaitingReminder(Instant from, Instant to);
 
     UserBookingHistory historyOf(UUID userId);
+
+    List<Booking> findByVenueAndPeriod(UUID venueId, Instant from, Instant to);
 }

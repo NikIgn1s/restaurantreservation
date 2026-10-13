@@ -7,12 +7,15 @@ import com.restaurant.reservation.application.usecase.CancelBookingUseCase;
 import com.restaurant.reservation.application.usecase.CompleteBookingUseCase;
 import com.restaurant.reservation.application.usecase.ConfirmBookingUseCase;
 import com.restaurant.reservation.application.usecase.CreateBookingUseCase;
+import com.restaurant.reservation.application.usecase.GetBookingEventsUseCase;
 import com.restaurant.reservation.application.usecase.GetBookingUseCase;
 import com.restaurant.reservation.application.usecase.ListMyBookingsUseCase;
 import com.restaurant.reservation.application.usecase.MarkNoShowUseCase;
 import com.restaurant.reservation.presentation.mapper.BookingApiMapper;
+import com.restaurant.reservation.presentation.mapper.BookingEventApiMapper;
 import com.restaurant.reservation.presentation.request.CreateBookingRequest;
 import com.restaurant.reservation.presentation.resolver.CurrentActor;
+import com.restaurant.reservation.presentation.response.BookingEventResponse;
 import com.restaurant.reservation.presentation.response.BookingResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -49,7 +52,9 @@ public class BookingController {
     private final ConfirmBookingUseCase confirmBooking;
     private final CompleteBookingUseCase completeBooking;
     private final MarkNoShowUseCase markNoShow;
+    private final GetBookingEventsUseCase getBookingEvents;
     private final BookingApiMapper mapper;
+    private final BookingEventApiMapper eventMapper;
 
     @PostMapping
     @Operation(summary = "Book a slot",
@@ -82,6 +87,16 @@ public class BookingController {
     @Operation(summary = "Booking details", description = "Visible to the booking owner, the venue owner and ADMIN")
     public BookingResponse get(@CurrentActor Actor actor, @PathVariable UUID bookingId) {
         return mapper.toResponse(getBooking.execute(new BookingActionCommand(actor, bookingId)));
+    }
+
+    @GetMapping("/{bookingId}/events")
+    @Operation(summary = "History of a booking",
+            description = "Chronological log of what happened to the booking and who did it. "
+                    + "Visible to the booking owner, the venue owner and ADMIN")
+    public List<BookingEventResponse> events(@CurrentActor Actor actor, @PathVariable UUID bookingId) {
+        return getBookingEvents.execute(new BookingActionCommand(actor, bookingId)).stream()
+                .map(eventMapper::toResponse)
+                .toList();
     }
 
     @PostMapping("/{bookingId}/confirm")

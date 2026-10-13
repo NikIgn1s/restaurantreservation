@@ -41,13 +41,18 @@ public class BookingRepositoryAdapter implements BookingRepository {
     private final BookingMapper mapper;
     private final EntityManager entityManager;
     private final ApplicationEventPublisher events;
+    private final BookingEventRecorder recorder;
 
     @Override
     @Transactional
     public Booking save(Booking booking) {
-        boolean exists = jpa.existsById(booking.getId());
+        BookingEventRecorder.BookingSnapshot previous = jpa.findById(booking.getId())
+                .map(BookingEventRecorder.BookingSnapshot::of)
+                .orElse(null);
+        boolean exists = previous != null;
         try {
             Booking saved = exists ? update(booking) : insert(booking);
+            recorder.recordBookingSaved(previous, saved);
             if (!exists || !saved.getStatus().occupiesSlot()) {
                 events.publishEvent(new ResourceSlotsChanged(saved.getResourceId()));
             }
@@ -145,6 +150,12 @@ public class BookingRepositoryAdapter implements BookingRepository {
         return jpa.findByStatusAndCreatedAtBefore(BookingStatus.PENDING, threshold).stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Booking> findByVenueAndPeriod(UUID venueId, Instant from, Instant to) {
+        return jpa.findByVenueAndPeriod(venueId, from, to).stream().map(mapper::toDomain).toList();
     }
 
     @Override

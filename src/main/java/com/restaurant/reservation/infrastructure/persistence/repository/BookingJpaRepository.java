@@ -45,6 +45,16 @@ public interface BookingJpaRepository extends JpaRepository<BookingEntity, UUID>
             """)
     List<BookingEntity> findAwaitingReminder(@Param("from") Instant from, @Param("to") Instant to);
 
+    @Query("""
+            select b from BookingEntity b
+            where b.resourceId in (select r.id from ResourceEntity r where r.venueId = :venueId)
+              and b.startAt >= :from
+              and b.startAt < :to
+            order by b.startAt, b.createdAt
+            """)
+    List<BookingEntity> findByVenueAndPeriod(@Param("venueId") UUID venueId, @Param("from") Instant from,
+                                             @Param("to") Instant to);
+
     long countByUserIdAndStatusIn(UUID userId, Collection<BookingStatus> statuses);
 
     long countByUserIdAndStatus(UUID userId, BookingStatus status);

@@ -7,6 +7,7 @@ import com.restaurant.reservation.application.usecase.CancelBookingUseCase;
 import com.restaurant.reservation.application.usecase.CompleteBookingUseCase;
 import com.restaurant.reservation.application.usecase.ConfirmBookingUseCase;
 import com.restaurant.reservation.application.usecase.CreateBookingUseCase;
+import com.restaurant.reservation.application.usecase.GetBookingEventsUseCase;
 import com.restaurant.reservation.application.usecase.GetBookingUseCase;
 import com.restaurant.reservation.application.usecase.ListMyBookingsUseCase;
 import com.restaurant.reservation.application.usecase.MarkNoShowUseCase;
@@ -19,6 +20,7 @@ import com.restaurant.reservation.domain.model.BookingStatus;
 import com.restaurant.reservation.domain.model.Resource;
 import com.restaurant.reservation.domain.model.TimeSlot;
 import com.restaurant.reservation.presentation.mapper.BookingApiMapper;
+import com.restaurant.reservation.presentation.mapper.BookingEventApiMapper;
 import com.restaurant.reservation.presentation.resolver.CurrentActorArgumentResolver;
 import com.restaurant.reservation.presentation.resolver.WebConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,7 +53,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(BookingController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import({WebConfig.class, CurrentActorArgumentResolver.class, BookingApiMapper.class})
+@Import({WebConfig.class, CurrentActorArgumentResolver.class, BookingApiMapper.class, BookingEventApiMapper.class})
 class BookingControllerTest {
 
     private static final UUID USER_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -74,6 +76,8 @@ class BookingControllerTest {
     private CompleteBookingUseCase completeBooking;
     @MockBean
     private MarkNoShowUseCase markNoShow;
+    @MockBean
+    private GetBookingEventsUseCase getBookingEvents;
 
     private Resource table;
     private Booking booking;

@@ -54,5 +54,17 @@ app:
     ttl: ${JWT_TTL:PT1H}
     issuer: reservation
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    redis:
+      enabled: false
+
 server:
   port: 8080
