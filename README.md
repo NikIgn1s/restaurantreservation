@@ -49,6 +49,7 @@ docker compose up --build
 | PostgreSQL | 5432 | `POSTGRES_PORT` |
 | Redis | 6379 | `REDIS_PORT` |
 | ML-сервис | 5002 | `ML_PORT` |
+| Сайт | 3100 | `FRONTEND_PORT` |
 
 Пример, если порт 8080 занят:
 
@@ -56,7 +57,7 @@ docker compose up --build
 BACKEND_PORT=8081 docker compose up --build
 ```
 
-Дальше откройте `http://localhost:8080/swagger-ui.html`, выполните `POST /api/auth/login` и нажмите Authorize с полученным токеном.
+Сайт откроется на `http://localhost:3100`. Для проверки API откройте `http://localhost:8080/swagger-ui.html`, выполните `POST /api/auth/login` и нажмите Authorize с полученным токеном.
 
 Compose включает dev-данные, поэтому доступны пользователи (пароль `password123`):
 
@@ -68,6 +69,20 @@ Compose включает dev-данные, поэтому доступны по�
 | admin@dev.local | ADMIN |
 
 Вне локальной разработки задайте свой `JWT_SECRET`.
+
+## Сайт
+
+Next.js (App Router), каталог `frontend/`. Структура: `src/modules/<модуль>/<модуль>.jsx` и `<модуль>.css`, общие компоненты, api и хуки в `src/shared`. Модули: auth, venues, booking, my-bookings, owner-dashboard. Запросы к `/api` проксируются на бэкенд через rewrites, адрес задаётся `BACKEND_URL` при сборке.
+
+Локально:
+
+```
+cd frontend
+npm install
+BACKEND_URL=http://localhost:8080 npm run dev
+```
+
+Сайт будет на `http://localhost:3100`.
 
 ## Локальный запуск
 

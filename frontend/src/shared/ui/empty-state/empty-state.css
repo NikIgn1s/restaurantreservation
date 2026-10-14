@@ -1,0 +1,44 @@
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 56px 24px;
+  text-align: center;
+  animation: empty-in 0.5s var(--ease) both;
+}
+
+.empty-state-icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 6px;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-radius: 20px;
+}
+
+.empty-state h3 {
+  font-size: 1.15rem;
+}
+
+.empty-state p {
+  max-width: 420px;
+  color: var(--muted);
+}
+
+.empty-state-action {
+  margin-top: 12px;
+}
+
+@keyframes empty-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
